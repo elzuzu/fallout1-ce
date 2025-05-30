@@ -110,6 +110,7 @@ void VulkanDebugger::resolve_frame(uint32_t frameIndex)
             fprintf(m_logFile, "Frame %u: %.3f ms\n", frameIndex, ms);
             fflush(m_logFile);
         }
+        m_lastFrameMs = ms;
     }
 }
 

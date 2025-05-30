@@ -15,6 +15,8 @@ public:
     void end_frame(uint32_t frameIndex, VkCommandBuffer cmd);
     void resolve_frame(uint32_t frameIndex);
 
+    double last_frame_ms() const { return m_lastFrameMs; }
+
 private:
     VkInstance m_instance = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
@@ -23,6 +25,7 @@ private:
     VkQueryPool m_queryPool = VK_NULL_HANDLE;
     double m_timestampPeriod = 1.0;
     FILE* m_logFile = nullptr;
+    double m_lastFrameMs = 0.0;
 };
 
 extern VulkanDebugger gVulkanDebugger;
