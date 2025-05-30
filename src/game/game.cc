@@ -207,6 +207,21 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
                 }
             }
 
+            char* rendererName;
+            if (config_get_string(&resolutionConfig, "GRAPHICS", "RENDERER", &rendererName)) {
+                if (compat_stricmp(rendererName, "VULKAN") == 0) {
+                    backend = RenderBackend::VULKAN_BATCH;
+                } else if (compat_stricmp(rendererName, "SDL") == 0) {
+                    backend = RenderBackend::SDL;
+                } else if (compat_stricmp(rendererName, "AUTO") == 0) {
+                    if (vulkan_is_available()) {
+                        backend = RenderBackend::VULKAN_BATCH;
+                    } else {
+                        backend = RenderBackend::SDL;
+                    }
+                }
+            }
+
             graphics_advanced_load();
             graphics_advanced_apply();
         }

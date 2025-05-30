@@ -49,9 +49,14 @@ SCR_WIDTH=1280
 SCR_HEIGHT=720
 WINDOWED=1
 RENDER_BACKEND=SDL
+[GRAPHICS]
+RENDERER=SDL
+VULKAN_DEBUG=0
+VULKAN_VSYNC=1
+VULKAN_GPU_INDEX=0
 ```
 
-Utilisez `RENDER_BACKEND=VULKAN_BATCH` pour activer le rendu Vulkan expérimental. Ce réglage peut également être remplacé par la variable d'environnement `FALLOUT_RENDER_BACKEND`.
+Utilisez `RENDER_BACKEND=VULKAN_BATCH` ou `[GRAPHICS] RENDERER=VULKAN` pour activer le rendu Vulkan expérimental. Ce réglage peut également être remplacé par la variable d'environnement `FALLOUT_RENDER_BACKEND`.
 
 Recommandations :
 - **Ordinateurs de bureau** : utilisez la taille que vous souhaitez.

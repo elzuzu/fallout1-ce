@@ -71,6 +71,10 @@ void graphics_advanced_load()
         configGetBool(&cfg, "MAIN", "VK_VALIDATION", &gGraphicsAdvanced.validation);
         configGetBool(&cfg, "MAIN", "VK_MULTITHREADED", &gGraphicsAdvanced.multithreaded);
         configGetBool(&cfg, "MAIN", "VK_DEBUGGER", &gGraphicsAdvanced.debugger);
+
+        config_get_value(&cfg, "GRAPHICS", "VULKAN_GPU_INDEX", &gGraphicsAdvanced.gpuIndex);
+        configGetBool(&cfg, "GRAPHICS", "VULKAN_VSYNC", &gGraphicsAdvanced.vsync);
+        configGetBool(&cfg, "GRAPHICS", "VULKAN_DEBUG", &gGraphicsAdvanced.validation);
     }
 
     config_exit(&cfg);
@@ -100,6 +104,10 @@ void graphics_advanced_save()
     configSetBool(&cfg, "MAIN", "VK_VALIDATION", gGraphicsAdvanced.validation);
     configSetBool(&cfg, "MAIN", "VK_MULTITHREADED", gGraphicsAdvanced.multithreaded);
     configSetBool(&cfg, "MAIN", "VK_DEBUGGER", gGraphicsAdvanced.debugger);
+
+    config_set_value(&cfg, "GRAPHICS", "VULKAN_GPU_INDEX", gGraphicsAdvanced.gpuIndex);
+    configSetBool(&cfg, "GRAPHICS", "VULKAN_VSYNC", gGraphicsAdvanced.vsync);
+    configSetBool(&cfg, "GRAPHICS", "VULKAN_DEBUG", gGraphicsAdvanced.validation);
     config_save(&cfg, "f1_res.ini", false);
     config_exit(&cfg);
 }

@@ -43,8 +43,8 @@ folder, or be in the Fallout folder. Update `music_path1` accordingly, usually
 it's `data/sound/music/` or `sound/music/`. Music files themselves (with `ACM`
 extension) should be all uppercased, regardless of `sound` and `music` folders.
 
-`f1_res.ini` controls window size and fullscreen mode and supports the following
-format:
+`f1_res.ini` controls window size, fullscreen mode and the rendering backend.
+The basic format is:
 
 ```ini
 [MAIN]
@@ -52,11 +52,17 @@ SCR_WIDTH=1280
 SCR_HEIGHT=720
 WINDOWED=1
 RENDER_BACKEND=SDL
+
+[GRAPHICS]
+RENDERER=SDL
+VULKAN_DEBUG=0
+VULKAN_VSYNC=1
+VULKAN_GPU_INDEX=0
 ```
 
-Use `RENDER_BACKEND=VULKAN_BATCH` to enable the experimental Vulkan renderer. This
-setting can also be overridden by the `FALLOUT_RENDER_BACKEND` environment
-variable.
+Use `RENDER_BACKEND=VULKAN_BATCH` or set `[GRAPHICS] RENDERER=VULKAN` to enable
+the Vulkan renderer. This setting can also be overridden by the
+`FALLOUT_RENDER_BACKEND` environment variable.
 
 Recommendations:
 - **Desktops**: Use any size you see fit.
