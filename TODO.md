@@ -6,7 +6,14 @@
 - [x] Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN_BATCH`.
   - Upscaling via blit et surfaces SDL minimales.
   - Sélection du backend au lancement (modification `winmain`).
-- [ ] Intégration 3D partielle : pipeline Vulkan 3D et caméra isométrique ; chargeur glTF basique opérationnel.
+- [ ] Intégration 3D partielle :
+  - [x] Prototype du pipeline Vulkan 3D (`GraphicsPipeline3D`).
+  - [x] Mise en place d'une caméra isométrique (`IsoCamera`/`IsometricCamera`).
+  - [x] Chargeur glTF basique opérationnel (`GltfLoader`).
+  - [x] Support des modèles glTF dans `ResourceManager`.
+  - [ ] Affichage d'un modèle glTF simple via le pipeline 3D.
+  - [ ] Liaison complète de la caméra au moteur de rendu.
+  - [ ] Gestion initiale des matériaux et textures.
 - [x] Pipeline Vulkan 2D basique pour les sprites.
 - [x] Gestionnaire de ressources avec cache (`ResourceManager`) et parser `AssetConfig`.
 - [x] Allocateur mémoire Vulkan via VMA.
