@@ -1,6 +1,7 @@
 #include "render/render.h"
 
 #include "plib/gnw/svga.h"
+#include "render/vulkan_render.h"
 
 namespace fallout {
 
@@ -10,13 +11,26 @@ bool render_init(RenderBackend backend, VideoOptions* options)
 {
     gBackend = backend;
 
-    // Only SDL backend available for now
-    return svga_init(options);
+    switch (backend) {
+    case RenderBackend::SDL:
+        return svga_init(options);
+    case RenderBackend::VULKAN:
+        return vulkan_render_init(options);
+    }
+
+    return false;
 }
 
 void render_exit()
 {
-    svga_exit();
+    switch (gBackend) {
+    case RenderBackend::SDL:
+        svga_exit();
+        break;
+    case RenderBackend::VULKAN:
+        vulkan_render_exit();
+        break;
+    }
 }
 
 int render_get_width()
@@ -31,12 +45,26 @@ int render_get_height()
 
 void render_handle_window_size_changed()
 {
-    handleWindowSizeChanged();
+    switch (gBackend) {
+    case RenderBackend::SDL:
+        handleWindowSizeChanged();
+        break;
+    case RenderBackend::VULKAN:
+        vulkan_render_handle_window_size_changed();
+        break;
+    }
 }
 
 void render_present()
 {
-    renderPresent();
+    switch (gBackend) {
+    case RenderBackend::SDL:
+        renderPresent();
+        break;
+    case RenderBackend::VULKAN:
+        vulkan_render_present();
+        break;
+    }
 }
 
 void render_set_window_title(const char* title)
@@ -48,12 +76,26 @@ void render_set_window_title(const char* title)
 
 SDL_Surface* render_get_surface()
 {
-    return gSdlSurface;
+    switch (gBackend) {
+    case RenderBackend::SDL:
+        return gSdlSurface;
+    case RenderBackend::VULKAN:
+        return vulkan_render_get_surface();
+    }
+
+    return nullptr;
 }
 
 SDL_Surface* render_get_texture_surface()
 {
-    return gSdlTextureSurface;
+    switch (gBackend) {
+    case RenderBackend::SDL:
+        return gSdlTextureSurface;
+    case RenderBackend::VULKAN:
+        return vulkan_render_get_texture_surface();
+    }
+
+    return nullptr;
 }
 
 } // namespace fallout
