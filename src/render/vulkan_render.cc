@@ -1,6 +1,7 @@
 #include "render/vulkan_render.h"
 #include "plib/gnw/svga.h"
 #include "game/graphics_advanced.h"
+#include "render/vulkan_thread_manager.h"
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -8,8 +9,10 @@
 #include <vector>
 
 namespace fallout {
+
+VulkanRenderer gVulkan;
+
 namespace {
-    VulkanRenderer gVulkan;
 
     static uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
     {
@@ -174,6 +177,105 @@ namespace {
             gVulkan.swapchain = VK_NULL_HANDLE;
         }
     }
+
+    static void record_and_submit(uint32_t imageIndex, uint32_t frame, VkCommandBuffer cmdBuffer, VkFence inFlight)
+    {
+        vkResetCommandBuffer(cmdBuffer, 0);
+        VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+        VkClearValue clear {};
+        clear.color.float32[0] = 0.f;
+        clear.color.float32[1] = 0.f;
+        clear.color.float32[2] = 0.f;
+        clear.color.float32[3] = 1.f;
+
+        VkRenderingAttachmentInfo offscreenAttachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        offscreenAttachment.imageView = gVulkan.internalImageView;
+        offscreenAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        offscreenAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        offscreenAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        offscreenAttachment.clearValue = clear;
+
+        VkRenderingInfo offscreenInfo { VK_STRUCTURE_TYPE_RENDERING_INFO };
+        offscreenInfo.renderArea.offset = { 0, 0 };
+        offscreenInfo.renderArea.extent = gVulkan.internalExtent;
+        offscreenInfo.layerCount = 1;
+        offscreenInfo.colorAttachmentCount = 1;
+        offscreenInfo.pColorAttachments = &offscreenAttachment;
+
+        vkCmdBeginRendering(cmdBuffer, &offscreenInfo);
+        vkCmdEndRendering(cmdBuffer);
+
+        VkImageMemoryBarrier offscreenBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+        offscreenBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        offscreenBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        offscreenBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        offscreenBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        offscreenBarrier.image = gVulkan.internalImage;
+        offscreenBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        offscreenBarrier.subresourceRange.levelCount = 1;
+        offscreenBarrier.subresourceRange.layerCount = 1;
+        offscreenBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        offscreenBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &offscreenBarrier);
+
+        VkImageMemoryBarrier swapBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+        swapBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        swapBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        swapBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        swapBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        swapBarrier.image = gVulkan.swapchainImages[imageIndex];
+        swapBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        swapBarrier.subresourceRange.levelCount = 1;
+        swapBarrier.subresourceRange.layerCount = 1;
+        swapBarrier.srcAccessMask = 0;
+        swapBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
+
+        VkImageBlit blit {};
+        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.layerCount = 1;
+        blit.srcOffsets[0] = { 0, 0, 0 };
+        blit.srcOffsets[1] = { static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1 };
+        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.layerCount = 1;
+        blit.dstOffsets[0] = { 0, 0, 0 };
+        blit.dstOffsets[1] = { static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1 };
+
+        vkCmdBlitImage(cmdBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &blit, VK_FILTER_LINEAR);
+
+        swapBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        swapBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        swapBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        swapBarrier.dstAccessMask = 0;
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
+
+        vkEndCommandBuffer(cmdBuffer);
+
+        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        VkSubmitInfo submit { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        submit.waitSemaphoreCount = 1;
+        submit.pWaitSemaphores = &gVulkan.imageAvailable[frame];
+        submit.pWaitDstStageMask = &waitStage;
+        submit.commandBufferCount = 1;
+        submit.pCommandBuffers = &cmdBuffer;
+        submit.signalSemaphoreCount = 1;
+        submit.pSignalSemaphores = &gVulkan.renderFinished[frame];
+
+        vkQueueSubmit(gVulkan.graphicsQueue, 1, &submit, inFlight);
+
+        VkPresentInfoKHR present { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+        present.waitSemaphoreCount = 1;
+        present.pWaitSemaphores = &gVulkan.renderFinished[frame];
+        present.swapchainCount = 1;
+        present.pSwapchains = &gVulkan.swapchain;
+        present.pImageIndices = &imageIndex;
+
+        vkQueuePresentKHR(gVulkan.graphicsQueue, &present);
+    }
 } // namespace
 
 bool vulkan_render_init(VideoOptions* options)
@@ -333,8 +435,12 @@ bool vulkan_render_init(VideoOptions* options)
     vkCreatePipelineCache(gVulkan.device, &cacheInfo, nullptr, &gVulkan.pipelineCache);
 
     VkSemaphoreCreateInfo semInfo { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    vkCreateSemaphore(gVulkan.device, &semInfo, nullptr, &gVulkan.imageAvailable);
-    vkCreateSemaphore(gVulkan.device, &semInfo, nullptr, &gVulkan.renderFinished);
+    gVulkan.imageAvailable.resize(kMaxFramesInFlight);
+    gVulkan.renderFinished.resize(kMaxFramesInFlight);
+    for (uint32_t i = 0; i < kMaxFramesInFlight; ++i) {
+        vkCreateSemaphore(gVulkan.device, &semInfo, nullptr, &gVulkan.imageAvailable[i]);
+        vkCreateSemaphore(gVulkan.device, &semInfo, nullptr, &gVulkan.renderFinished[i]);
+    }
 
     VkFenceCreateInfo fenceInfo { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -344,12 +450,17 @@ bool vulkan_render_init(VideoOptions* options)
     }
     gVulkan.currentFrame = 0;
 
+    if (gGraphicsAdvanced.multithreaded)
+        gVulkanThread.start();
+
     return true;
 }
 
 void vulkan_render_exit()
 {
     if (gVulkan.device != VK_NULL_HANDLE) {
+        if (gGraphicsAdvanced.multithreaded)
+            gVulkanThread.stop();
         vkDeviceWaitIdle(gVulkan.device);
 
         for (VkFence f : gVulkan.inFlightFences) {
@@ -357,10 +468,12 @@ void vulkan_render_exit()
         }
         gVulkan.inFlightFences.clear();
 
-        if (gVulkan.renderFinished != VK_NULL_HANDLE)
-            vkDestroySemaphore(gVulkan.device, gVulkan.renderFinished, nullptr);
-        if (gVulkan.imageAvailable != VK_NULL_HANDLE)
-            vkDestroySemaphore(gVulkan.device, gVulkan.imageAvailable, nullptr);
+        for (VkSemaphore s : gVulkan.renderFinished)
+            vkDestroySemaphore(gVulkan.device, s, nullptr);
+        for (VkSemaphore s : gVulkan.imageAvailable)
+            vkDestroySemaphore(gVulkan.device, s, nullptr);
+        gVulkan.renderFinished.clear();
+        gVulkan.imageAvailable.clear();
 
         if (gVulkan.descriptorPool != VK_NULL_HANDLE)
             vkDestroyDescriptorPool(gVulkan.device, gVulkan.descriptorPool, nullptr);
@@ -409,10 +522,15 @@ void vulkan_render_handle_window_size_changed()
     gVulkan.width = static_cast<uint32_t>(w);
     gVulkan.height = static_cast<uint32_t>(h);
 
+    if (gGraphicsAdvanced.multithreaded)
+        gVulkanThread.stop();
     vkDeviceWaitIdle(gVulkan.device);
 
     destroy_swapchain();
     create_swapchain(gVulkan.width, gVulkan.height);
+
+    if (gGraphicsAdvanced.multithreaded)
+        gVulkanThread.start();
 }
 
 void vulkan_render_present()
@@ -427,108 +545,17 @@ void vulkan_render_present()
     vkResetFences(gVulkan.device, 1, &inFlight);
 
     uint32_t imageIndex = 0;
-    vkAcquireNextImageKHR(gVulkan.device, gVulkan.swapchain, UINT64_MAX, gVulkan.imageAvailable, VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(gVulkan.device, gVulkan.swapchain, UINT64_MAX, gVulkan.imageAvailable[gVulkan.currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(cmdBuffer, 0);
-    VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
-
-    // Render to the low resolution offscreen image
-    VkClearValue clear {};
-    clear.color.float32[0] = 0.f;
-    clear.color.float32[1] = 0.f;
-    clear.color.float32[2] = 0.f;
-    clear.color.float32[3] = 1.f;
-
-    VkRenderingAttachmentInfo offscreenAttachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    offscreenAttachment.imageView = gVulkan.internalImageView;
-    offscreenAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    offscreenAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    offscreenAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    offscreenAttachment.clearValue = clear;
-
-    VkRenderingInfo offscreenInfo { VK_STRUCTURE_TYPE_RENDERING_INFO };
-    offscreenInfo.renderArea.offset = { 0, 0 };
-    offscreenInfo.renderArea.extent = gVulkan.internalExtent;
-    offscreenInfo.layerCount = 1;
-    offscreenInfo.colorAttachmentCount = 1;
-    offscreenInfo.pColorAttachments = &offscreenAttachment;
-
-    vkCmdBeginRendering(cmdBuffer, &offscreenInfo);
-    vkCmdEndRendering(cmdBuffer);
-
-    // Transition offscreen image for blit
-    VkImageMemoryBarrier offscreenBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    offscreenBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    offscreenBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    offscreenBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    offscreenBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    offscreenBarrier.image = gVulkan.internalImage;
-    offscreenBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    offscreenBarrier.subresourceRange.levelCount = 1;
-    offscreenBarrier.subresourceRange.layerCount = 1;
-    offscreenBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    offscreenBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &offscreenBarrier);
-
-    // Transition swapchain image for blit destination
-    VkImageMemoryBarrier swapBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    swapBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    swapBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    swapBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    swapBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    swapBarrier.image = gVulkan.swapchainImages[imageIndex];
-    swapBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    swapBarrier.subresourceRange.levelCount = 1;
-    swapBarrier.subresourceRange.layerCount = 1;
-    swapBarrier.srcAccessMask = 0;
-    swapBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
-
-    // Blit with linear filter to upscale
-    VkImageBlit blit {};
-    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blit.srcSubresource.layerCount = 1;
-    blit.srcOffsets[0] = { 0, 0, 0 };
-    blit.srcOffsets[1] = { static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1 };
-    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blit.dstSubresource.layerCount = 1;
-    blit.dstOffsets[0] = { 0, 0, 0 };
-    blit.dstOffsets[1] = { static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1 };
-
-    vkCmdBlitImage(cmdBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &blit, VK_FILTER_LINEAR);
-
-    // Transition swapchain image for presentation
-    swapBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    swapBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    swapBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    swapBarrier.dstAccessMask = 0;
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
-
-    vkEndCommandBuffer(cmdBuffer);
-
-    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    VkSubmitInfo submit { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit.waitSemaphoreCount = 1;
-    submit.pWaitSemaphores = &gVulkan.imageAvailable;
-    submit.pWaitDstStageMask = &waitStage;
-    submit.commandBufferCount = 1;
-    submit.pCommandBuffers = &cmdBuffer;
-    submit.signalSemaphoreCount = 1;
-    submit.pSignalSemaphores = &gVulkan.renderFinished;
-
-    vkQueueSubmit(gVulkan.graphicsQueue, 1, &submit, inFlight);
-
-    VkPresentInfoKHR present { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-    present.waitSemaphoreCount = 1;
-    present.pWaitSemaphores = &gVulkan.renderFinished;
-    present.swapchainCount = 1;
-    present.pSwapchains = &gVulkan.swapchain;
-    present.pImageIndices = &imageIndex;
-
-    vkQueuePresentKHR(gVulkan.graphicsQueue, &present);
+    if (!gGraphicsAdvanced.multithreaded) {
+        record_and_submit(imageIndex, gVulkan.currentFrame, cmdBuffer, inFlight);
+    } else {
+        RenderCommand cmd{};
+        cmd.func = [imageIndex, frame = gVulkan.currentFrame, cmdBuffer, inFlight]() {
+            record_and_submit(imageIndex, frame, cmdBuffer, inFlight);
+        };
+        gVulkanThread.submit(cmd);
+    }
 
     gVulkan.currentFrame = (gVulkan.currentFrame + 1) % gVulkan.commandBuffers.size();
 }
