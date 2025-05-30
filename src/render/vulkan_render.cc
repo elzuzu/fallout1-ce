@@ -1,6 +1,7 @@
 #include "render/vulkan_render.h"
 #include "game/graphics_advanced.h"
 #include "graphics/vulkan/MemoryAllocator.hpp"
+#include "graphics/vulkan/PipelineCache.hpp"
 #include "plib/gnw/svga.h"
 #include "render/post_processor.h"
 #include "render/vulkan_capabilities.h"
@@ -459,8 +460,8 @@ bool vulkan_render_init(VideoOptions* options)
     if (vkCreateDescriptorPool(gVulkan.device, &descPoolInfo, nullptr, &gVulkan.descriptorPool) != VK_SUCCESS)
         return false;
 
-    VkPipelineCacheCreateInfo cacheInfo { VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
-    vkCreatePipelineCache(gVulkan.device, &cacheInfo, nullptr, &gVulkan.pipelineCache);
+    PipelineCache::init(gVulkan.device);
+    gVulkan.pipelineCache = PipelineCache::handle();
 
     VkSemaphoreCreateInfo semInfo { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     gVulkan.imageAvailable.resize(kMaxFramesInFlight);
@@ -508,8 +509,9 @@ void vulkan_render_exit()
 
         if (gVulkan.descriptorPool != VK_NULL_HANDLE)
             vkDestroyDescriptorPool(gVulkan.device, gVulkan.descriptorPool, nullptr);
-        if (gVulkan.pipelineCache != VK_NULL_HANDLE)
-            vkDestroyPipelineCache(gVulkan.device, gVulkan.pipelineCache, nullptr);
+
+        PipelineCache::shutdown();
+        gVulkan.pipelineCache = VK_NULL_HANDLE;
 
         for (VkCommandPool p : gVulkan.commandPools)
             vkDestroyCommandPool(gVulkan.device, p, nullptr);
