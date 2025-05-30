@@ -4,6 +4,7 @@
 #include "graphics/vulkan/PipelineCache.hpp"
 #include "graphics/vulkan/VulkanDevice.h"
 #include "graphics/vulkan/VulkanResourceAllocator.h"
+#include "graphics/vulkan/VulkanSwapchain.h"
 #include "plib/gnw/svga.h"
 #include "render/post_processor.h"
 #include "render/vulkan_capabilities.h"
@@ -80,7 +81,21 @@ namespace { // Anonymous namespace for static helpers
     static void destroy_depth_resources() { /* ... (implementation from previous step) ... */ }
     static bool create_internal_image() { /* ... (implementation from previous step, ensure vkCreateImage, vkAllocateMemory, vkBindImageMemory, vkCreateImageView are correct) ... */ return true; }
     static void destroy_internal_image() { /* ... (implementation from previous step) ... */ }
-    static bool create_swapchain(uint32_t width, uint32_t height) { /* ... (implementation from previous step) ... */ return true; }
+    static bool create_swapchain(uint32_t width, uint32_t height)
+    {
+        (void)width;
+        (void)height;
+        VulkanSwapchain swap;
+        if (!swap.create(gVulkan.device, gVulkan.physicalDevice, gVulkan.surface, gSdlWindow)) {
+            return false;
+        }
+        gVulkan.swapchain = swap.get();
+        gVulkan.swapchainImages = swap.getImages();
+        gVulkan.swapchainImageViews = swap.getImageViews();
+        gVulkan.swapchainImageFormat = swap.getImageFormat();
+        gVulkan.swapchainExtent = swap.getExtent();
+        return true;
+    }
     static void destroy_swapchain() { /* ... (implementation from previous step) ... */ }
 
     // --- Temp: Hardcoded list of entities to render ---
