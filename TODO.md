@@ -16,6 +16,7 @@
 
 ### Infrastructure Vulkan/3D
 - [ ] Compléter le moteur Vulkan (pipeline 3D complet, gestion commandes, shaders).
+- [ ] Vérifier les extensions Vulkan nécessaires (VK_KHR_surface, VK_KHR_win32_surface, VK_EXT_debug_utils, VK_KHR_swapchain, VK_EXT_graphics_pipeline_library).
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
