@@ -304,6 +304,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/render/post_processor.cc"
     "src/graphics/vulkan/VulkanInstance.cpp"
     "src/graphics/vulkan/VulkanInstance.h"
+    "src/graphics/vulkan/VulkanDevice.cpp"
+    "src/graphics/vulkan/VulkanDevice.h"
     "src/graphics/vulkan/MemoryAllocator.cpp"
     "src/graphics/vulkan/MemoryAllocator.hpp"
     "src/graphics/vulkan/PipelineCache.cpp"

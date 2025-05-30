@@ -1,8 +1,9 @@
 #include "render/vulkan_render.h"
 #include "game/graphics_advanced.h"
-#include "graphics/vulkan/VulkanResourceAllocator.h"
-#include "graphics/vulkan/PipelineCache.hpp"
 #include "graphics/vulkan/GraphicsPipeline3D.h"
+#include "graphics/vulkan/PipelineCache.hpp"
+#include "graphics/vulkan/VulkanDevice.h"
+#include "graphics/vulkan/VulkanResourceAllocator.h"
 #include "plib/gnw/svga.h"
 #include "render/post_processor.h"
 #include "render/vulkan_capabilities.h"
@@ -16,13 +17,13 @@
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <vector>
-#include <map>
 
+#include "game/IsometricCamera.h"
 #include "game/ResourceManager.h"
 #include "graphics/RenderableTypes.h"
-#include "game/IsometricCamera.h"
 // #include "game/object_types.h" // Not directly using Object* for rendering list yet
 
 namespace fallout {
@@ -39,26 +40,33 @@ std::map<std::string, VulkanMesh> gGpuMeshes;
 // For now, RM will load, and we expect textures to be available via RM.GetTexture().
 // std::map<std::string, std::shared_ptr<graphics::TextureAsset>> gRendererTextureCache;
 
-
 // Helper function for single-time command submission (simplified)
-void execute_single_time_commands(VkCommandPool pool, VkQueue queue, std::function<void(VkCommandBuffer)> recorder) {
+void execute_single_time_commands(VkCommandPool pool, VkQueue queue, std::function<void(VkCommandBuffer)> recorder)
+{
     // ... (implementation from previous step, assumed to be here and working) ...
-    VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; allocInfo.commandPool = pool; allocInfo.commandBufferCount = 1;
-    VkCommandBuffer commandBuffer; vkAllocateCommandBuffers(gVulkan.device, &allocInfo, &commandBuffer);
-    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    recorder(commandBuffer); vkEndCommandBuffer(commandBuffer);
-    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submitInfo.commandBufferCount = 1; submitInfo.pCommandBuffers = &commandBuffer;
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE); vkQueueWaitIdle(queue);
+    VkCommandBufferAllocateInfo allocInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = pool;
+    allocInfo.commandBufferCount = 1;
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(gVulkan.device, &allocInfo, &commandBuffer);
+    VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    recorder(commandBuffer);
+    vkEndCommandBuffer(commandBuffer);
+    VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
     vkFreeCommandBuffers(gVulkan.device, pool, 1, &commandBuffer);
 }
 
-
 namespace { // Anonymous namespace for static helpers
 
-    static uint32_t find_memory_type_manual(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    static uint32_t find_memory_type_manual(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
         // ... (implementation from previous step) ...
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -68,11 +76,11 @@ namespace { // Anonymous namespace for static helpers
         throw std::runtime_error("failed to find suitable memory type!");
     }
 
-    static bool create_depth_resources() { /* ... (implementation from previous step) ... */ return true;}
+    static bool create_depth_resources() { /* ... (implementation from previous step) ... */ return true; }
     static void destroy_depth_resources() { /* ... (implementation from previous step) ... */ }
-    static bool create_internal_image() { /* ... (implementation from previous step, ensure vkCreateImage, vkAllocateMemory, vkBindImageMemory, vkCreateImageView are correct) ... */ return true;}
+    static bool create_internal_image() { /* ... (implementation from previous step, ensure vkCreateImage, vkAllocateMemory, vkBindImageMemory, vkCreateImageView are correct) ... */ return true; }
     static void destroy_internal_image() { /* ... (implementation from previous step) ... */ }
-    static bool create_swapchain(uint32_t width, uint32_t height) { /* ... (implementation from previous step) ... */ return true;}
+    static bool create_swapchain(uint32_t width, uint32_t height) { /* ... (implementation from previous step) ... */ return true; }
     static void destroy_swapchain() { /* ... (implementation from previous step) ... */ }
 
     // --- Temp: Hardcoded list of entities to render ---
@@ -80,7 +88,8 @@ namespace { // Anonymous namespace for static helpers
     std::vector<Renderable3DEntity> gVisible3DEntitiesList_Frame; // Entities for current frame
 
     // Helper to upload model data to GPU if not already done
-    VulkanMesh* get_or_upload_gpu_mesh(const std::string& modelId, const std::string& modelCategory, int meshIdx) {
+    VulkanMesh* get_or_upload_gpu_mesh(const std::string& modelId, const std::string& modelCategory, int meshIdx)
+    {
         if (!gVulkan.resourceManager_ || !gVulkan.resourceAllocator_) return nullptr;
 
         std::string gpuMeshKey = modelId + "_mesh_" + std::to_string(meshIdx);
@@ -91,7 +100,7 @@ namespace { // Anonymous namespace for static helpers
 
         std::shared_ptr<graphics::ModelAsset> modelAsset = gVulkan.resourceManager_->GetModel(modelId);
         if (!modelAsset) { // Try loading if not found (e.g. if GetModel doesn't lazy load)
-             modelAsset = gVulkan.resourceManager_->LoadModel(modelId, modelCategory);
+            modelAsset = gVulkan.resourceManager_->LoadModel(modelId, modelCategory);
         }
 
         if (!modelAsset || meshIdx >= modelAsset->meshes.size()) {
@@ -103,18 +112,18 @@ namespace { // Anonymous namespace for static helpers
         VulkanMesh newGpuMesh;
         newGpuMesh.indexCount = static_cast<uint32_t>(cpuMeshData.indices.size());
         if (!cpuMeshData.vertices.empty()) {
-             // Vertex Buffer (using full graphics::Vertex)
+            // Vertex Buffer (using full graphics::Vertex)
             VkDeviceSize vbSize = cpuMeshData.vertices.size() * sizeof(graphics::Vertex);
             vk::AllocatedBuffer stagingVB;
             gVulkan.resourceAllocator_->CreateStagingBuffer(vbSize, stagingVB, true);
             memcpy(stagingVB.mappedData, cpuMeshData.vertices.data(), vbSize);
             gVulkan.resourceAllocator_->CreateVertexBuffer(vbSize, newGpuMesh.vertexBuffer, true, false);
             execute_single_time_commands(gVulkan.commandPools[0], gVulkan.graphicsQueue,
-                [&](VkCommandBuffer cmd){ VkBufferCopy rgn{0,0,vbSize}; vkCmdCopyBuffer(cmd, stagingVB.buffer, newGpuMesh.vertexBuffer.buffer, 1, &rgn); });
+                [&](VkCommandBuffer cmd) { VkBufferCopy rgn{0,0,vbSize}; vkCmdCopyBuffer(cmd, stagingVB.buffer, newGpuMesh.vertexBuffer.buffer, 1, &rgn); });
             stagingVB.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
         } else {
-             fprintf(stderr, "Warning: Mesh %d in model '%s' has no vertex data.\n", meshIdx, modelId.c_str());
-             return nullptr; // Cannot render empty mesh
+            fprintf(stderr, "Warning: Mesh %d in model '%s' has no vertex data.\n", meshIdx, modelId.c_str());
+            return nullptr; // Cannot render empty mesh
         }
 
         if (newGpuMesh.indexCount > 0) {
@@ -124,7 +133,7 @@ namespace { // Anonymous namespace for static helpers
             memcpy(stagingIB.mappedData, cpuMeshData.indices.data(), ibSize);
             gVulkan.resourceAllocator_->CreateIndexBuffer(ibSize, newGpuMesh.indexBuffer, true, false);
             execute_single_time_commands(gVulkan.commandPools[0], gVulkan.graphicsQueue,
-                [&](VkCommandBuffer cmd){ VkBufferCopy rgn{0,0,ibSize}; vkCmdCopyBuffer(cmd, stagingIB.buffer, newGpuMesh.indexBuffer.buffer, 1, &rgn); });
+                [&](VkCommandBuffer cmd) { VkBufferCopy rgn{0,0,ibSize}; vkCmdCopyBuffer(cmd, stagingIB.buffer, newGpuMesh.indexBuffer.buffer, 1, &rgn); });
             stagingIB.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
         }
 
@@ -138,8 +147,8 @@ namespace { // Anonymous namespace for static helpers
         return &gGpuMeshes[gpuMeshKey];
     }
 
-
-    static void record_and_submit(uint32_t imageIndex, uint32_t frameInFlightIndex, VkCommandBuffer cmdBuffer, VkFence inFlight) {
+    static void record_and_submit(uint32_t imageIndex, uint32_t frameInFlightIndex, VkCommandBuffer cmdBuffer, VkFence inFlight)
+    {
         vkResetCommandBuffer(cmdBuffer, 0);
         VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
@@ -149,11 +158,10 @@ namespace { // Anonymous namespace for static helpers
         // --- Rendering setup (barriers, clear values, rendering info - as before) ---
         // (Assuming create_depth_resources and create_internal_image correctly set up attachments)
         VkClearValue clearValues[2];
-        clearValues[0].color = {{0.1f, 0.1f, 0.1f, 1.0f}};
-        clearValues[1].depthStencil = {1.0f, 0};
+        clearValues[0].color = { { 0.1f, 0.1f, 0.1f, 1.0f } };
+        clearValues[1].depthStencil = { 1.0f, 0 };
         // ... (VkRenderingAttachmentInfo for color and depth, VkRenderingInfo offscreenInfo as before) ...
         // ... (Layout transition barriers for internal color and depth images as before) ...
-
 
         vkCmdBeginRendering(cmdBuffer, &offscreenInfo); // offscreenInfo needs to be defined and set
 
@@ -161,7 +169,7 @@ namespace { // Anonymous namespace for static helpers
         if (!gVulkan.fallbackTo2D_ && gVulkan.graphicsPipeline3D_ && gVulkan.graphicsPipeline3D_->GetPipeline()) {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gVulkan.graphicsPipeline3D_->GetPipeline());
             VkViewport viewport = { 0.0f, 0.0f, (float)gVulkan.internalExtent.width, (float)gVulkan.internalExtent.height, 0.0f, 1.0f };
-            VkRect2D scissor = { {0,0}, gVulkan.internalExtent };
+            VkRect2D scissor = { { 0, 0 }, gVulkan.internalExtent };
             vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
             vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
@@ -177,27 +185,29 @@ namespace { // Anonymous namespace for static helpers
                     if (!gpuMesh) continue;
 
                     // Update UBO
-                    SceneMatrices uboData{};
+                    SceneMatrices uboData {};
                     uboData.model = entity.worldTransform;
                     if (gVulkan.camera_) { // Ensure camera is valid
                         uboData.view = gVulkan.camera_->GetViewMatrix();
                         uboData.projection = gVulkan.camera_->GetProjectionMatrix();
-                    } else { continue; } // No camera, cannot render
+                    } else {
+                        continue;
+                    } // No camera, cannot render
                     memcpy(gVulkan.matricesUBO_.mappedData, &uboData, sizeof(SceneMatrices));
 
                     // Get Texture for this mesh's material
                     std::shared_ptr<graphics::TextureAsset> textureAsset = nullptr;
                     if (!gpuMesh->materialTexturePath.empty()) {
                         textureAsset = gVulkan.resourceManager_->GetTexture(gpuMesh->materialTexturePath);
-                        if(!textureAsset) textureAsset = gVulkan.resourceManager_->LoadTexture(gpuMesh->materialTexturePath, "ModelTextures");
+                        if (!textureAsset) textureAsset = gVulkan.resourceManager_->LoadTexture(gpuMesh->materialTexturePath, "ModelTextures");
                     }
 
                     // Update Combined Descriptor Set (UBO + Texture)
                     VkWriteDescriptorSet writes[2];
                     int writeCount = 0;
 
-                    VkDescriptorBufferInfo bufferInfo{gVulkan.matricesUBO_.buffer, 0, sizeof(SceneMatrices)};
-                    writes[writeCount] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                    VkDescriptorBufferInfo bufferInfo { gVulkan.matricesUBO_.buffer, 0, sizeof(SceneMatrices) };
+                    writes[writeCount] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
                     writes[writeCount].dstSet = gVulkan.combinedDescriptorSets_[frameInFlightIndex];
                     writes[writeCount].dstBinding = 0; // UBO
                     writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -205,13 +215,13 @@ namespace { // Anonymous namespace for static helpers
                     writes[writeCount].pBufferInfo = &bufferInfo;
                     writeCount++;
 
-                    VkDescriptorImageInfo imageInfo{}; // Default empty
+                    VkDescriptorImageInfo imageInfo {}; // Default empty
                     if (textureAsset && textureAsset->loaded) {
                         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         imageInfo.imageView = textureAsset->imageView;
                         imageInfo.sampler = textureAsset->sampler;
 
-                        writes[writeCount] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                        writes[writeCount] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
                         writes[writeCount].dstSet = gVulkan.combinedDescriptorSets_[frameInFlightIndex];
                         writes[writeCount].dstBinding = 1; // Texture
                         writes[writeCount].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -227,11 +237,11 @@ namespace { // Anonymous namespace for static helpers
                     vkUpdateDescriptorSets(gVulkan.device, writeCount, writes, 0, nullptr);
 
                     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                            gVulkan.graphicsPipeline3D_->GetPipelineLayout(), 0, 1,
-                                            &gVulkan.combinedDescriptorSets_[frameInFlightIndex], 0, nullptr);
+                        gVulkan.graphicsPipeline3D_->GetPipelineLayout(), 0, 1,
+                        &gVulkan.combinedDescriptorSets_[frameInFlightIndex], 0, nullptr);
 
-                    VkBuffer vertexBuffers[] = {gpuMesh->vertexBuffer.buffer};
-                    VkDeviceSize offsets[] = {0};
+                    VkBuffer vertexBuffers[] = { gpuMesh->vertexBuffer.buffer };
+                    VkDeviceSize offsets[] = { 0 };
                     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
                     if (gpuMesh->indexCount > 0) {
                         vkCmdBindIndexBuffer(cmdBuffer, gpuMesh->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -245,15 +255,28 @@ namespace { // Anonymous namespace for static helpers
     }
 } // namespace (anonymous)
 
+bool vulkan_render_init(VideoOptions* options)
+{
+    // ... (SDL and instance creation done earlier) ...
 
-bool vulkan_render_init(VideoOptions* options) {
-    // ... (SDL, instance, surface, physical device, queue families, device creation as before) ...
+    VulkanDevice deviceSelector;
+    if (!deviceSelector.selectPhysicalDevice(gVulkan.instance, gVulkan.surface)) {
+        return false; // No suitable GPU
+    }
+    gVulkan.physicalDevice = deviceSelector.getPhysicalDevice();
+
+    // ... (queue families, device creation as before) ...
     // Ensure gVulkan.resourceAllocator_, gVulkan.resourceManager_, gVulkan.camera_ are initialized.
     // This is a conceptual placeholder for where game would set these up.
-    if (!gVulkan.resourceAllocator_) { /* ... fatal error ... */ return false; }
-    if (!gVulkan.resourceManager_ || !gVulkan.resourceManager_->Initialize("f1_res.ini" /*or actual path*/)) { /* ... fatal error ... */ return false; }
-    if (!gVulkan.camera_) { /* ... fatal error ... */ return false; }
-
+    if (!gVulkan.resourceAllocator_) { /* ... fatal error ... */
+        return false;
+    }
+    if (!gVulkan.resourceManager_ || !gVulkan.resourceManager_->Initialize("f1_res.ini" /*or actual path*/)) { /* ... fatal error ... */
+        return false;
+    }
+    if (!gVulkan.camera_) { /* ... fatal error ... */
+        return false;
+    }
 
     if (gGraphicsAdvanced.debugger) gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
     if (!create_swapchain(gVulkan.width, gVulkan.height)) return false;
@@ -273,7 +296,7 @@ bool vulkan_render_init(VideoOptions* options) {
     if (!gVulkan.fallbackTo2D_ && gVulkan.graphicsPipeline3D_ && gVulkan.resourceAllocator_) {
         gVulkan.resourceAllocator_->CreateUniformBuffer(sizeof(SceneMatrices), gVulkan.matricesUBO_, true);
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, gVulkan.combinedDescriptorSetLayout_);
-        VkDescriptorSetAllocateInfo setAllocInfo {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        VkDescriptorSetAllocateInfo setAllocInfo { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
         setAllocInfo.descriptorPool = gVulkan.descriptorPool; /* ... ensure pool is valid ... */
         setAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
         setAllocInfo.pSetLayouts = layouts.data();
@@ -283,10 +306,12 @@ bool vulkan_render_init(VideoOptions* options) {
         } else {
             // Initial UBO update for descriptor sets
             for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-                VkDescriptorBufferInfo bufferInfo{gVulkan.matricesUBO_.buffer, 0, sizeof(SceneMatrices)};
-                VkWriteDescriptorSet uboWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                uboWrite.dstSet = gVulkan.combinedDescriptorSets_[i]; uboWrite.dstBinding = 0;
-                uboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; uboWrite.descriptorCount = 1;
+                VkDescriptorBufferInfo bufferInfo { gVulkan.matricesUBO_.buffer, 0, sizeof(SceneMatrices) };
+                VkWriteDescriptorSet uboWrite { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+                uboWrite.dstSet = gVulkan.combinedDescriptorSets_[i];
+                uboWrite.dstBinding = 0;
+                uboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                uboWrite.descriptorCount = 1;
                 uboWrite.pBufferInfo = &bufferInfo;
                 // Texture part is updated per-draw in record_and_submit
                 vkUpdateDescriptorSets(gVulkan.device, 1, &uboWrite, 0, nullptr);
@@ -297,21 +322,21 @@ bool vulkan_render_init(VideoOptions* options) {
     // --- Pre-load some assets for testing (simulating game logic) ---
     if (!gVulkan.fallbackTo2D_) {
         // Player Character (example)
-        gVisible3DEntitiesList.push_back({"PlayerMale", "CritterModels", game::Mat4Translate({-1.0f, 0.0f, 0.0f}) * game::Mat4Scale({0.5f,0.5f,0.5f}) });
+        gVisible3DEntitiesList.push_back({ "PlayerMale", "CritterModels", game::Mat4Translate({ -1.0f, 0.0f, 0.0f }) * game::Mat4Scale({ 0.5f, 0.5f, 0.5f }) });
         // Creature (example)
-        gVisible3DEntitiesList.push_back({"Radroach", "CritterModels", game::Mat4Translate({1.0f, 0.0f, 0.0f}) });
+        gVisible3DEntitiesList.push_back({ "Radroach", "CritterModels", game::Mat4Translate({ 1.0f, 0.0f, 0.0f }) });
         // Door (example)
         // gVisible3DEntitiesList.push_back({"VaultDoor", "SceneryModels", game::Mat4Translate({0.0f, 0.0f, -2.0f}) });
 
         // Models (and their textures) will be loaded and GPU resources created on first sight in record_and_submit
         // via get_or_upload_gpu_mesh and RM::LoadTexture.
         // Alternatively, pre-upload them here:
-        for(const auto& entityDesc : gVisible3DEntitiesList) {
+        for (const auto& entityDesc : gVisible3DEntitiesList) {
             std::shared_ptr<graphics::ModelAsset> modelAsset = gVulkan.resourceManager_->LoadModel(entityDesc.logicalModelName, entityDesc.modelCategory);
-            if(modelAsset) {
-                for(size_t i=0; i < modelAsset->meshes.size(); ++i) {
+            if (modelAsset) {
+                for (size_t i = 0; i < modelAsset->meshes.size(); ++i) {
                     VulkanMesh* mesh = get_or_upload_gpu_mesh(entityDesc.logicalModelName, entityDesc.modelCategory, i);
-                    if(mesh && !mesh->materialTexturePath.empty()){
+                    if (mesh && !mesh->materialTexturePath.empty()) {
                         gVulkan.resourceManager_->LoadTexture(mesh->materialTexturePath, "ModelTextures");
                     }
                 }
@@ -322,13 +347,14 @@ bool vulkan_render_init(VideoOptions* options) {
     return true;
 }
 
-void vulkan_render_exit() {
+void vulkan_render_exit()
+{
     if (gVulkan.device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(gVulkan.device);
         // ...
-        if(gVulkan.resourceAllocator_){
+        if (gVulkan.resourceAllocator_) {
             gVulkan.matricesUBO_.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
-            for(auto& pair : gGpuMeshes) {
+            for (auto& pair : gGpuMeshes) {
                 pair.second.vertexBuffer.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
                 pair.second.indexBuffer.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
             }
@@ -354,6 +380,6 @@ void vulkan_render_handle_window_size_changed() { /* As before */ }
 void vulkan_render_present() { /* As before */ }
 SDL_Surface* vulkan_render_get_surface() { return gVulkan.frameSurface; }
 SDL_Surface* vulkan_render_get_texture_surface() { return gVulkan.frameTextureSurface; }
-bool vulkan_is_available() { /* As before */ return true;}
+bool vulkan_is_available() { /* As before */ return true; }
 
 } // namespace fallout
