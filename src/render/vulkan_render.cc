@@ -2,6 +2,7 @@
 #include "plib/gnw/svga.h"
 #include "game/graphics_advanced.h"
 #include "render/vulkan_thread_manager.h"
+#include "render/vulkan_debugger.h"
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -184,6 +185,9 @@ namespace {
         VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
+        if (gGraphicsAdvanced.debugger)
+            gVulkanDebugger.begin_frame(frame, cmdBuffer);
+
         VkClearValue clear {};
         clear.color.float32[0] = 0.f;
         clear.color.float32[1] = 0.f;
@@ -253,6 +257,9 @@ namespace {
         swapBarrier.dstAccessMask = 0;
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
 
+        if (gGraphicsAdvanced.debugger)
+            gVulkanDebugger.end_frame(frame, cmdBuffer);
+
         vkEndCommandBuffer(cmdBuffer);
 
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -275,6 +282,9 @@ namespace {
         present.pImageIndices = &imageIndex;
 
         vkQueuePresentKHR(gVulkan.graphicsQueue, &present);
+
+        if (gGraphicsAdvanced.debugger)
+            gVulkanDebugger.resolve_frame(frame);
     }
 } // namespace
 
@@ -405,6 +415,9 @@ bool vulkan_render_init(VideoOptions* options)
 
     vkGetDeviceQueue(gVulkan.device, gVulkan.graphicsQueueFamily, 0, &gVulkan.graphicsQueue);
 
+    if (gGraphicsAdvanced.debugger)
+        gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
+
     if (!create_swapchain(gVulkan.width, gVulkan.height))
         return false;
 
@@ -461,6 +474,8 @@ void vulkan_render_exit()
     if (gVulkan.device != VK_NULL_HANDLE) {
         if (gGraphicsAdvanced.multithreaded)
             gVulkanThread.stop();
+        if (gGraphicsAdvanced.debugger)
+            gVulkanDebugger.destroy();
         vkDeviceWaitIdle(gVulkan.device);
 
         for (VkFence f : gVulkan.inFlightFences) {
