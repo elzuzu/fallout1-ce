@@ -6,10 +6,11 @@
 - [x] Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN_BATCH`.
   - Upscaling via blit et surfaces SDL minimales.
   - Sélection du backend au lancement (modification `winmain`).
-- [ ] Intégration 3D partielle : pipeline Vulkan 3D, caméra isométrique et chargeur glTF en développement.
+- [ ] Intégration 3D partielle : pipeline Vulkan 3D et caméra isométrique ; chargeur glTF basique opérationnel.
 - [x] Pipeline Vulkan 2D basique pour les sprites.
 - [x] Gestionnaire de ressources avec cache (`ResourceManager`) et parser `AssetConfig`.
 - [x] Allocateur mémoire Vulkan via VMA.
+- [x] Pools de buffers dédiés via `VulkanResourceAllocator`.
 - [x] Script `frm_extract.py` pour extraire les FRM et option glTF.
 - [x] Documentation initiale du pipeline Vulkan (voir `docs/vulkan_implementation_guide.md`).
 
