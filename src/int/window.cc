@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "game/config.h"
 #include "game/game.h"
 #include "int/datafile.h"
 #include "int/intlib.h"
@@ -92,6 +93,24 @@ static void doRightButtonRelease(int btn, int keyCode);
 static void setButtonGFX(int width, int height, unsigned char* normal, unsigned char* pressed, unsigned char* a5);
 static void redrawButton(ManagedButton* button);
 static void windowRemoveProgramReferences(Program* program);
+
+// Persists selected renderer backend into the resolution configuration file.
+static void save_render_backend(RenderBackend backend)
+{
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    if (use_config == NULL || strcmp(use_config, "1") != 0)
+        return;
+
+    Config cfg;
+    if (!config_init(&cfg))
+        return;
+
+    config_load(&cfg, "f1_res.ini", false);
+    const char* name = backend == RenderBackend::VULKAN ? "VULKAN" : "SDL";
+    config_set_string(&cfg, "MAIN", "RENDER_BACKEND", name);
+    config_save(&cfg, "f1_res.ini", false);
+    config_exit(&cfg);
+}
 
 // 0x50868C
 static int holdTime = 250;
@@ -1552,6 +1571,15 @@ void initWindow(VideoOptions* video_options, int flags, RenderBackend backend)
     }
 
     rc = win_init(video_options, flags, backend);
+    if (rc != WINDOW_MANAGER_OK && backend == RenderBackend::VULKAN) {
+        // Attempt automatic fallback to SDL when Vulkan initialization fails.
+        rc = win_init(video_options, flags, RenderBackend::SDL);
+        if (rc == WINDOW_MANAGER_OK) {
+            save_render_backend(RenderBackend::SDL);
+            backend = RenderBackend::SDL;
+        }
+    }
+
     if (rc != WINDOW_MANAGER_OK) {
         switch (rc) {
         case WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE:
