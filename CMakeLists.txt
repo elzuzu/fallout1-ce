@@ -276,6 +276,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/render/vulkan_memory_manager.cc"
     "src/render/vulkan_render.cc"
     "src/render/vulkan_thread_manager.cc"
+    "src/render/vulkan_texture_manager.cc"
 )
 
 if(IOS)
