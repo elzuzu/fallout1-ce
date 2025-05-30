@@ -40,6 +40,7 @@
 - [x] Hot-reload des shaders GLSL/HLSL.
 - [ ] Génération automatique des mipmaps pour les textures.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
+- [x] Prototype `IsoCamera` et culling CPU pour tests.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).
 - [ ] Implémenter une transition intelligente Sprite/3D avec cache des sprites.
 - [ ] Mettre en place une interface de rendu unifiée (`RenderObject`).
