@@ -12,6 +12,7 @@
 #include "plib/gnw/intrface.h"
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
+#include "render/render.h"
 #include "plib/gnw/text.h"
 #include "plib/gnw/vcr.h"
 #include "plib/gnw/winmain.h"
@@ -111,8 +112,8 @@ int win_init(VideoOptions* video_options, int flags)
         return WINDOW_MANAGER_ERR_INITIALIZING_TEXT_FONTS;
     }
 
-    if (!svga_init(video_options)) {
-        svga_exit();
+    if (!render_init(RenderBackend::SDL, video_options)) {
+        render_exit();
 
         return WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE;
     }
@@ -120,7 +121,7 @@ int win_init(VideoOptions* video_options, int flags)
     if ((flags & 1) != 0) {
         screen_buffer = (unsigned char*)mem_malloc((scr_size.lry - scr_size.uly + 1) * (scr_size.lrx - scr_size.ulx + 1));
         if (screen_buffer == NULL) {
-            svga_exit();
+            render_exit();
 
             return WINDOW_MANAGER_ERR_NO_MEMORY;
         }
@@ -135,7 +136,7 @@ int win_init(VideoOptions* video_options, int flags)
     if (!initColors()) {
         unsigned char* palette = (unsigned char*)mem_malloc(768);
         if (palette == NULL) {
-            svga_exit();
+            render_exit();
 
             if (screen_buffer != NULL) {
                 mem_free(screen_buffer);
@@ -162,7 +163,7 @@ int win_init(VideoOptions* video_options, int flags)
 
     Window* w = window[0] = (Window*)mem_malloc(sizeof(*w));
     if (w == NULL) {
-        svga_exit();
+        render_exit();
 
         if (screen_buffer != NULL) {
             mem_free(screen_buffer);
@@ -230,7 +231,7 @@ void win_exit(void)
                 mem_free(screen_buffer);
             }
 
-            svga_exit();
+            render_exit();
 
             GNW_input_exit();
             GNW_rect_exit();
@@ -1269,9 +1270,7 @@ void win_set_minimized_title(const char* title)
     strncpy(GNW95_title, title, 256);
     GNW95_title[256 - 1] = '\0';
 
-    if (gSdlWindow != nullptr) {
-        SDL_SetWindowTitle(gSdlWindow, GNW95_title);
-    }
+    render_set_window_title(GNW95_title);
 }
 
 // 0x4C4204

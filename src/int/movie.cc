@@ -18,6 +18,7 @@
 #include "plib/gnw/grbuf.h"
 #include "plib/gnw/input.h"
 #include "plib/gnw/svga.h"
+#include "render/render.h"
 #include "plib/gnw/text.h"
 #include "plib/gnw/winmain.h"
 
@@ -313,9 +314,10 @@ static void movie_MVE_ShowFrame(SDL_Surface* surface, int srcWidth, int srcHeigh
         }
     }
 
-    SDL_SetSurfacePalette(surface, gSdlSurface->format->palette);
-    SDL_BlitSurface(surface, &srcRect, gSdlSurface, &destRect);
-    SDL_BlitSurface(gSdlSurface, NULL, gSdlTextureSurface, NULL);
+    SDL_Surface* screenSurface = render_get_surface();
+    SDL_SetSurfacePalette(surface, screenSurface->format->palette);
+    SDL_BlitSurface(surface, &srcRect, screenSurface, &destRect);
+    SDL_BlitSurface(screenSurface, NULL, render_get_texture_surface(), NULL);
     renderPresent();
 }
 
