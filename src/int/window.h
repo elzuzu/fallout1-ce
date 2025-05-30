@@ -7,6 +7,7 @@
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/rect.h"
 #include "plib/gnw/svga_types.h"
+#include "render/render.h"
 
 namespace fallout {
 
@@ -87,7 +88,7 @@ int windowDisplayTransBuf(unsigned char* src, int srcWidth, int srcHeight, int d
 int windowDisplayBufScaled(unsigned char* src, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight);
 int windowGetXres();
 int windowGetYres();
-void initWindow(VideoOptions* video_options, int flags);
+void initWindow(VideoOptions* video_options, int flags, RenderBackend backend);
 void windowSetWindowFuncs(ManagedWindowCreateCallback* createCallback, ManagedWindowSelectFunc* selectCallback, WindowDeleteCallback* deleteCallback, DisplayInWindowCallback* displayCallback);
 void windowClose();
 bool windowDeleteButton(const char* buttonName);

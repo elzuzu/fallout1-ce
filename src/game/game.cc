@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "game/actions.h"
 #include "game/anim.h"
@@ -149,6 +150,8 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
     video_options.fullscreen = true;
     video_options.scale = 1;
 
+    RenderBackend backend = RenderBackend::SDL;
+
     Config resolutionConfig;
     if (config_init(&resolutionConfig)) {
         if (config_load(&resolutionConfig, "f1_res.ini", false)) {
@@ -173,11 +176,23 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
                 video_options.width /= video_options.scale;
                 video_options.height /= video_options.scale;
             }
+
+            char* backendName;
+            if (config_get_string(&resolutionConfig, "MAIN", "RENDER_BACKEND", &backendName)) {
+                if (compat_stricmp(backendName, "VULKAN") == 0) {
+                    backend = RenderBackend::VULKAN;
+                }
+            }
         }
         config_exit(&resolutionConfig);
     }
 
-    initWindow(&video_options, flags);
+    const char* envBackend = getenv("FALLOUT_RENDER_BACKEND");
+    if (envBackend != nullptr && compat_stricmp(envBackend, "VULKAN") == 0) {
+        backend = RenderBackend::VULKAN;
+    }
+
+    initWindow(&video_options, flags, backend);
     palette_init();
 
     if (!game_in_mapper) {
