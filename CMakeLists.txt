@@ -52,7 +52,7 @@ cmake_minimum_required(VERSION 3.13)
                                                                                                                                                         target_link_options($ { EXECUTABLE_NAME } PUBLIC "-fsanitize=undefined")
                                                                                                                                                             endif()
 
-                                                                                                                                                                target_include_directories($ { EXECUTABLE_NAME } PUBLIC src external / VMA / include)
+target_include_directories($ { EXECUTABLE_NAME } PUBLIC src external / VMA / include external / tinygltf)
                                                                                                                                                                     target_compile_definitions($ { EXECUTABLE_NAME } PUBLIC VMA_STATIC_VULKAN_FUNCTIONS = 0)
 
                                                                                                                                                                         target_sources($ { EXECUTABLE_NAME } PUBLIC

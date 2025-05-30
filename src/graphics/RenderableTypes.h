@@ -24,14 +24,13 @@ struct MaterialInfo {
     std::string name;
     Vec4 baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
     std::string baseColorTexturePath;
-    // Other PBR properties can be added here:
-    // float metallicFactor = 0.0f;
-    // float roughnessFactor = 1.0f;
-    // std::string metallicRoughnessTexturePath;
-    // std::string normalTexturePath;
-    // std::string occlusionTexturePath;
-    // std::string emissiveTexturePath;
-    // Vec3 emissiveFactor = {0.0f, 0.0f, 0.0f};
+    float metallicFactor = 0.0f;
+    float roughnessFactor = 1.0f;
+    std::string metallicRoughnessTexturePath;
+    std::string normalTexturePath;
+    std::string occlusionTexturePath;
+    std::string emissiveTexturePath;
+    Vec3 emissiveFactor = {0.0f, 0.0f, 0.0f};
     bool doubleSided = false;
 };
 
@@ -47,8 +46,29 @@ struct MeshData {
 struct ModelNode { // For scene hierarchy, simplified for now
     std::string name;
     std::vector<int> meshIndices; // Indices into the Model's mesh list
-    // Mat4 transform; // Local transform
-    // std::vector<int> children; // Indices to child nodes
+    Vec3 translation{0,0,0};
+    Vec4 rotation{0,0,0,1};
+    Vec3 scale{1,1,1};
+    int parent = -1;
+    std::vector<int> children; // Indices to child nodes
+};
+
+struct AnimationKeyframe {
+    float time = 0.0f;
+    Vec3 translation{0,0,0};
+    Vec4 rotation{0,0,0,1};
+    Vec3 scale{1,1,1};
+};
+
+struct AnimationChannel {
+    int nodeIndex = -1;
+    std::vector<AnimationKeyframe> keyframes;
+};
+
+struct AnimationClip {
+    std::string name;
+    float duration = 0.0f;
+    std::vector<AnimationChannel> channels;
 };
 
 struct ModelAsset {
@@ -56,7 +76,7 @@ struct ModelAsset {
     std::vector<MeshData> meshes;
     std::vector<MaterialInfo> materials;
     std::vector<ModelNode> nodes; // Simplified hierarchy, or just a flat list of meshes
-    // TODO: Add animations, skins etc. later
+    std::vector<AnimationClip> animations;
     bool loaded = false;
 };
 

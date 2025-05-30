@@ -5,6 +5,7 @@ add_executable(f1_tests
     vulkan_available_test.cpp
     test_batch.cpp
     test_cache.cpp
+    gltf_loader_test.cpp
 )
 
 target_include_directories(f1_tests PRIVATE

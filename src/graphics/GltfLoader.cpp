@@ -45,21 +45,16 @@ bool GltfLoader::Load(const std::string& filePath, ModelAsset& outAsset) {
         ProcessMaterial(model, static_cast<int>(i), outAsset);
     }
 
-    // Process all meshes referenced by nodes
-    // For simplicity, we'll iterate through scenes and their nodes to find meshes.
-    // A more robust approach might iterate all model.meshes if not all are instanced in scenes.
+    // Build node hierarchy
     for (const auto& scene : model.scenes) {
         for (int nodeIdx : scene.nodes) {
-            if (nodeIdx >= 0 && nodeIdx < model.nodes.size()) {
-                 // Recursive node processing (can be complex if full hierarchy is needed)
-                 // For this task, let's simplify and just grab meshes directly from nodes.
-                 // ProcessNode(model, model.nodes[nodeIdx], outAsset, -1);
+            if (nodeIdx >= 0 && nodeIdx < static_cast<int>(model.nodes.size())) {
+                ProcessNode(model, model.nodes[nodeIdx], outAsset, -1);
             }
         }
     }
-    // Simpler: iterate all nodes that have meshes.
-    // This might create duplicates if nodes instantiate the same mesh multiple times with different transforms.
-    // For now, we'll just load unique meshes.
+
+    // Load meshes referenced in nodes
     outAsset.meshes.resize(model.meshes.size()); // Pre-allocate assuming one MeshData per glTF mesh
     bool anyMeshLoaded = false;
     for(size_t i = 0; i < model.meshes.size(); ++i) {
@@ -107,6 +102,29 @@ bool GltfLoader::Load(const std::string& filePath, ModelAsset& outAsset) {
                             outAsset.meshes.end());
     }
 
+    // Load animations
+    for (const auto& anim : model.animations) {
+        AnimationClip clip;
+        clip.name = anim.name;
+        for (size_t c = 0; c < anim.channels.size(); ++c) {
+            const auto& ch = anim.channels[c];
+            if (ch.sampler < 0 || ch.sampler >= static_cast<int>(anim.samplers.size())) continue;
+            const auto& samp = anim.samplers[ch.sampler];
+            AnimationChannel channel; channel.nodeIndex = ch.target_node;
+            size_t kcount = std::min(samp.inputTimes.size(), samp.outputVec3.size());
+            for (size_t k = 0; k < kcount; ++k) {
+                AnimationKeyframe kf;
+                kf.time = static_cast<float>(samp.inputTimes[k]);
+                kf.translation = {static_cast<float>(samp.outputVec3[k][0]),
+                                  static_cast<float>(samp.outputVec3[k][1]),
+                                  static_cast<float>(samp.outputVec3[k][2])};
+                clip.duration = std::max(clip.duration, kf.time);
+                channel.keyframes.push_back(kf);
+            }
+            clip.channels.push_back(channel);
+        }
+        outAsset.animations.push_back(clip);
+    }
 
     outAsset.loaded = anyMeshLoaded || !outAsset.materials.empty();
     return outAsset.loaded;
@@ -133,8 +151,38 @@ void GltfLoader::ProcessMaterial(const tinygltf::Model& model, int materialIdx, 
             // Full texture loading would require decoding this URI or data buffer.
         }
     }
+    materialInfo.metallicFactor = static_cast<float>(gltfMat.pbrMetallicRoughness.metallicFactor);
+    materialInfo.roughnessFactor = static_cast<float>(gltfMat.pbrMetallicRoughness.roughnessFactor);
+
+    if (gltfMat.pbrMetallicRoughness.metallicRoughnessTexture >= 0) {
+        const tinygltf::Texture& tex = model.textures[gltfMat.pbrMetallicRoughness.metallicRoughnessTexture];
+        if (tex.source >= 0 && tex.source < model.images.size()) {
+            materialInfo.metallicRoughnessTexturePath = model.images[tex.source].uri;
+        }
+    }
+    if (gltfMat.normalTexture.index >= 0) {
+        const tinygltf::Texture& tex = model.textures[gltfMat.normalTexture.index];
+        if (tex.source >= 0 && tex.source < model.images.size()) {
+            materialInfo.normalTexturePath = model.images[tex.source].uri;
+        }
+    }
+    if (gltfMat.occlusionTexture.index >= 0) {
+        const tinygltf::Texture& tex = model.textures[gltfMat.occlusionTexture.index];
+        if (tex.source >= 0 && tex.source < model.images.size()) {
+            materialInfo.occlusionTexturePath = model.images[tex.source].uri;
+        }
+    }
+    if (gltfMat.emissiveTexture.index >= 0) {
+        const tinygltf::Texture& tex = model.textures[gltfMat.emissiveTexture.index];
+        if (tex.source >= 0 && tex.source < model.images.size()) {
+            materialInfo.emissiveTexturePath = model.images[tex.source].uri;
+        }
+    }
+    materialInfo.emissiveFactor = {
+        static_cast<float>(gltfMat.emissiveFactor[0]),
+        static_cast<float>(gltfMat.emissiveFactor[1]),
+        static_cast<float>(gltfMat.emissiveFactor[2])};
     materialInfo.doubleSided = gltfMat.doubleSided;
-    // TODO: Load other PBR parameters (metallic, roughness, textures) as needed
 
     outAsset.materials.push_back(materialInfo);
 }
@@ -286,8 +334,43 @@ void GltfLoader::ExtractIndexData(const tinygltf::Model& model, int accessorInde
         outIndices[i] = index;
     }
 }
-// ProcessNode and full scene hierarchy support would go here if needed.
-// For now, we are loading meshes directly.
+
+void GltfLoader::ProcessNode(const tinygltf::Model& model, const tinygltf::Node& node,
+                             ModelAsset& outAsset, int parentNodeIndex) {
+    ModelNode newNode;
+    newNode.name = node.name;
+    if (node.translation.size() == 3) {
+        newNode.translation = {static_cast<float>(node.translation[0]),
+                               static_cast<float>(node.translation[1]),
+                               static_cast<float>(node.translation[2])};
+    }
+    if (node.rotation.size() == 4) {
+        newNode.rotation = {static_cast<float>(node.rotation[0]),
+                            static_cast<float>(node.rotation[1]),
+                            static_cast<float>(node.rotation[2]),
+                            static_cast<float>(node.rotation[3])};
+    }
+    if (node.scale.size() == 3) {
+        newNode.scale = {static_cast<float>(node.scale[0]),
+                          static_cast<float>(node.scale[1]),
+                          static_cast<float>(node.scale[2])};
+    }
+    newNode.parent = parentNodeIndex;
+    if (node.mesh >= 0) {
+        newNode.meshIndices.push_back(node.mesh);
+    }
+
+    int thisIndex = static_cast<int>(outAsset.nodes.size());
+    outAsset.nodes.push_back(newNode);
+    if (parentNodeIndex >= 0 && parentNodeIndex < static_cast<int>(outAsset.nodes.size())) {
+        outAsset.nodes[parentNodeIndex].children.push_back(thisIndex);
+    }
+    for (int child : node.children) {
+        if (child >= 0 && child < static_cast<int>(model.nodes.size())) {
+            ProcessNode(model, model.nodes[child], outAsset, thisIndex);
+        }
+    }
+}
 
 } // namespace graphics
 } // namespace fallout
