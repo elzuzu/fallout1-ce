@@ -11,6 +11,7 @@ struct GraphicsAdvancedOptions {
     int fpsLimit;
     bool validation;
     bool multithreaded;
+    bool debugger;
 };
 
 extern GraphicsAdvancedOptions gGraphicsAdvanced;

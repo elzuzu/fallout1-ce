@@ -14,7 +14,7 @@
 
 namespace fallout {
 
-GraphicsAdvancedOptions gGraphicsAdvanced{0, 2, 1, true, 60, false, false};
+GraphicsAdvancedOptions gGraphicsAdvanced{0, 2, 1, true, 60, false, false, false};
 
 static std::vector<std::string> enumerate_gpus()
 {
@@ -70,9 +70,15 @@ void graphics_advanced_load()
         config_get_value(&cfg, "MAIN", "FPS_LIMIT", &gGraphicsAdvanced.fpsLimit);
         configGetBool(&cfg, "MAIN", "VK_VALIDATION", &gGraphicsAdvanced.validation);
         configGetBool(&cfg, "MAIN", "VK_MULTITHREADED", &gGraphicsAdvanced.multithreaded);
+        configGetBool(&cfg, "MAIN", "VK_DEBUGGER", &gGraphicsAdvanced.debugger);
     }
 
     config_exit(&cfg);
+
+    const char* envDebug = getenv("F1CE_VULKAN_DEBUG");
+    if (envDebug != nullptr) {
+        gGraphicsAdvanced.debugger = strcmp(envDebug, "1") == 0;
+    }
 }
 
 void graphics_advanced_save()
@@ -93,6 +99,7 @@ void graphics_advanced_save()
     config_set_value(&cfg, "MAIN", "FPS_LIMIT", gGraphicsAdvanced.fpsLimit);
     configSetBool(&cfg, "MAIN", "VK_VALIDATION", gGraphicsAdvanced.validation);
     configSetBool(&cfg, "MAIN", "VK_MULTITHREADED", gGraphicsAdvanced.multithreaded);
+    configSetBool(&cfg, "MAIN", "VK_DEBUGGER", gGraphicsAdvanced.debugger);
     config_save(&cfg, "f1_res.ini", false);
     config_exit(&cfg);
 }
@@ -145,6 +152,10 @@ int do_graphics_advanced()
     int m = win_list_select("Vulkan Multithreaded", yesno, 2, NULL, 80, 80, 0x10000 | 0x100 | 4);
     if (m != -1)
         gGraphicsAdvanced.multithreaded = m == 1;
+
+    int dbg = win_list_select("Vulkan Debugger", yesno, 2, NULL, 80, 80, 0x10000 | 0x100 | 4);
+    if (dbg != -1)
+        gGraphicsAdvanced.debugger = dbg == 1;
 
     graphics_advanced_save();
     graphics_advanced_apply();
