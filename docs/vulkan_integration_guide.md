@@ -75,3 +75,41 @@ VULKAN_GPU_INDEX=0
 The build integrates a lightweight copy of `tinygltf` located in `external/tinygltf`.
 No additional dependencies are required. Enable or disable glTF tests through the
 standard `f1_tests` target.
+
+## 4. Intégration dans Fallout1-CE
+
+### 4.1 Points d'intégration
+
+**Fichiers à modifier** :
+- `src/game/main.c` : Sélection du renderer
+- `src/render/` : Nouveau module Vulkan 3D
+- `src/game/critter.c` : Rendu des personnages 3D
+- `src/game/object.c` : Rendu des objets de décor
+
+### 4.2 Configuration utilisateur
+
+**Nouvelles options dans `f1_res.ini`** :
+```ini
+[GRAPHICS]
+RENDER_BACKEND=VULKAN
+VULKAN_3D_MODELS=1
+FALLBACK_TO_SPRITES=1
+GLTF_MODEL_PATH=data/models/
+ANIMATION_QUALITY=HIGH
+PBR_SHADING=1
+```
+
+### 4.3 Performance et debugging
+
+**Métriques à exposer** :
+- FPS et frame time
+- Mémoire GPU utilisée
+- Nombre de draw calls
+- Taille des descriptor sets
+- Temps de chargement glTF
+
+**Debug features** :
+- Wireframe mode
+- Normal visualization
+- Texture atlas viewer
+- Animation timeline scrubber
