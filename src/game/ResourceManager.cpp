@@ -4,9 +4,7 @@
 #include "anim/AnimationData.h"
 #include <iostream> // For placeholder messages
 
-// Note: The SpriteData struct definition is currently in ResourceManager.h.
-// This is needed for AssetCache's std::shared_ptr<SpriteData>.
-// Ideally, move SpriteData to its own header or a common graphics types header.
+// SpriteData definition is located in graphics/SpriteTypes.h.
 
 namespace fallout {
 

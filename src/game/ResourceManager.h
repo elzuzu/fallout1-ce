@@ -5,26 +5,12 @@
 #include <map>
 #include <memory>
 #include "graphics/RenderableTypes.h" // For ModelAsset
+#include "graphics/SpriteTypes.h"    // For SpriteData
 #include "anim/AnimationData.h"      // For AnimationSet
 #include "cache/AssetCache.h"        // For AssetCache
 #include "game/AssetConfig.h"        // For AssetConfig
 
 namespace fallout {
-
-// TODO: SpriteData struct should be moved to its own header (e.g. graphics/SpriteTypes.h)
-// or to graphics/RenderableTypes.h to avoid circular dependencies or include issues
-// if other systems need it, and for AssetCache to correctly use it without fwd declaration tricks.
-// For this task, keeping it here to minimize file changes, but AssetCache.cpp will need this definition.
-struct SpriteData {
-    std::string filePath; // Original path, might be from config
-    bool loaded = false;
-    // Actual sprite data would go here: e.g. texture ID, dimensions, UVs for a specific sprite,
-    // potentially a pointer to a larger texture atlas if sprites are packed.
-    // For FRM, this might hold processed frame data or reference to FRM file.
-    // For now, it's simple, but AssetCache uses shared_ptr<SpriteData>.
-};
-
-
 class ResourceManager {
 public:
     ResourceManager();
