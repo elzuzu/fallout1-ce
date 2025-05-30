@@ -25,6 +25,25 @@ enable_testing()
 option(ASAN "Enable address sanitizer" OFF)
 option(UBSAN "Enable undefined behaviour sanitizer" OFF)
 
+# Compile GLSL shaders to SPIR-V
+find_program(GLSLANG_VALIDATOR glslangValidator)
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(GLOB SHADER_SRC "${SHADER_DIR}/*.vert" "${SHADER_DIR}/*.frag")
+set(SPIRV_OUTPUTS)
+foreach(SHADER ${SHADER_SRC})
+    get_filename_component(FILE_NAME ${SHADER} NAME)
+    set(SPIRV ${SHADER_OUT_DIR}/${FILE_NAME}.spv)
+    add_custom_command(
+        OUTPUT ${SPIRV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
+        COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER} -o ${SPIRV}
+        DEPENDS ${SHADER}
+    )
+    list(APPEND SPIRV_OUTPUTS ${SPIRV})
+endforeach()
+add_custom_target(shaders ALL DEPENDS ${SPIRV_OUTPUTS})
+
 if (ANDROID)
     add_library(${EXECUTABLE_NAME} SHARED)
 else()
