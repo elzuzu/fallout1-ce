@@ -22,6 +22,40 @@ src/
 ```
 Cette structure isole le code spécifique à Vulkan.
 
+## Vue d'ensemble du pipeline Vulkan
+
+Voici l'architecture du pipeline graphique Vulkan d'après la documentation officielle :
+
+```
+INPUT DATA → VERTEX SHADER → TESSELLATION → GEOMETRY → RASTERIZATION → FRAGMENT SHADER → COLOR BLEND → FRAMEBUFFER
+    ↓              ↓             ↓           ↓             ↓              ↓              ↓
+ Vertices      Transform      Subdivide   Add/Remove    Pixel Gen     Color Calc     Final Output
+ Indices       Positions      Geometry    Primitives    Fragments     Texturing      Blending
+ Attributes    Lighting                                               Lighting
+```
+
+**Légende des étapes** :
+- 🟡 **Programmables** : Vertex Shader, Tessellation, Geometry, Fragment Shader
+- 🟢 **Fixes** : Input Assembly, Rasterization, Color Blend, Output Merger
+
+## 1. Compléter le moteur Vulkan (Pipeline 3D complet)
+
+### 1.1 Architecture actuelle et extensions nécessaires
+
+**État actuel** : Votre projet a déjà un renderer Vulkan expérimental activé via `RENDER_BACKEND=VULKAN`.
+
+**Extensions Vulkan à vérifier** :
+```c
+// Dans votre VkInstance
+VK_KHR_surface
+VK_KHR_win32_surface  // Pour Windows
+VK_EXT_debug_utils    // Pour le debug
+
+// Dans votre VkDevice  
+VK_KHR_swapchain
+VK_EXT_graphics_pipeline_library  // Optionnel pour performance
+```
+
 ## 10. Configuration `f1_res.ini`
 ```ini
 [MAIN]
