@@ -20,7 +20,10 @@ src/
 │   │   └── memory_allocator.cpp
 │   └── renderer_factory.cpp
 ```
-Cette structure isole le code spécifique à Vulkan.
+Cette structure isole le code spécifique à Vulkan. L'allocation mémoire utilise
+désormais `VulkanResourceAllocator` avec des pools dédiés pour les buffers de
+vertex, d'index et d'uniformes afin de réduire la fragmentation et d'améliorer
+les performances.
 
 ## 10. Configuration `f1_res.ini`
 ```ini

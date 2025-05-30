@@ -70,6 +70,29 @@ bool VulkanResourceAllocator::Init(VkInstance instance, VkPhysicalDevice physica
         return false;
     }
 
+    // Create dedicated pools for common buffer types
+    auto create_pool = [&](VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VkDeviceSize blockSize, VmaPool& pool) {
+        VkBufferCreateInfo bInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bInfo.size = 256; // small size to query memory type
+        bInfo.usage = usage;
+        VmaAllocationCreateInfo aInfo{};
+        aInfo.usage = memUsage;
+        uint32_t typeIndex = 0;
+        if (vmaFindMemoryTypeIndexForBufferInfo(vmaAllocator_, &bInfo, &aInfo, &typeIndex) == VK_SUCCESS) {
+            VmaPoolCreateInfo pInfo{};
+            pInfo.memoryTypeIndex = typeIndex;
+            pInfo.blockSize = blockSize;
+            vmaCreatePool(vmaAllocator_, &pInfo, &pool);
+        }
+    };
+
+    create_pool(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY, 16 * 1024 * 1024, vertexBufferPool_);
+    create_pool(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY, 16 * 1024 * 1024, indexBufferPool_);
+    create_pool(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VMA_MEMORY_USAGE_CPU_TO_GPU, 4 * 1024 * 1024, uniformBufferPool_);
+
     device_ = device;
     initialized_ = true;
     return true;
@@ -79,10 +102,19 @@ void VulkanResourceAllocator::Shutdown() {
     if (!initialized_) {
         return;
     }
+    if (vertexBufferPool_ != VK_NULL_HANDLE)
+        vmaDestroyPool(vmaAllocator_, vertexBufferPool_);
+    if (indexBufferPool_ != VK_NULL_HANDLE)
+        vmaDestroyPool(vmaAllocator_, indexBufferPool_);
+    if (uniformBufferPool_ != VK_NULL_HANDLE)
+        vmaDestroyPool(vmaAllocator_, uniformBufferPool_);
     if (vmaAllocator_ != VK_NULL_HANDLE) {
         vmaDestroyAllocator(vmaAllocator_);
         vmaAllocator_ = VK_NULL_HANDLE;
     }
+    vertexBufferPool_ = VK_NULL_HANDLE;
+    indexBufferPool_ = VK_NULL_HANDLE;
+    uniformBufferPool_ = VK_NULL_HANDLE;
     device_ = VK_NULL_HANDLE;
     initialized_ = false;
 }
@@ -129,8 +161,10 @@ bool VulkanResourceAllocator::CreateVertexBuffer(VkDeviceSize size, AllocatedBuf
     VmaAllocationCreateInfo allocInfo = {};
     if (deviceLocal) {
         allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocInfo.pool = vertexBufferPool_;
     } else {
         allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // For dynamic VBs updated by CPU
+        allocInfo.pool = vertexBufferPool_;
         if (mapped) {
             allocInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
         }
@@ -158,8 +192,10 @@ bool VulkanResourceAllocator::CreateIndexBuffer(VkDeviceSize size, AllocatedBuff
     VmaAllocationCreateInfo allocInfo = {};
     if (deviceLocal) {
         allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocInfo.pool = indexBufferPool_;
     } else {
         allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        allocInfo.pool = indexBufferPool_;
          if (mapped) {
             allocInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
         }
@@ -185,6 +221,7 @@ bool VulkanResourceAllocator::CreateUniformBuffer(VkDeviceSize size, AllocatedBu
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // UBOs are frequently updated by CPU
+    allocInfo.pool = uniformBufferPool_;
     if (persistentlyMapped) {
         // VMA_ALLOCATION_CREATE_MAPPED_BIT ensures vmaCreateBuffer maps it if possible
         // and the pointer is available via VmaAllocationInfo.pMappedData or by calling vmaMapMemory
@@ -341,7 +378,7 @@ bool VulkanResourceAllocator::CreateTextureImage(const char* filePath,
     imageInfo.extent.width = static_cast<uint32_t>(texWidth);
     imageInfo.extent.height = static_cast<uint32_t>(texHeight);
     imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1; // TODO: Mipmap generation
+    imageInfo.mipLevels = 1; // TODO: implement mipmap generation
     imageInfo.arrayLayers = 1;
     imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM; // Or SRGB if color space correct
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -428,10 +465,10 @@ bool VulkanResourceAllocator::CreateTextureImage(const char* filePath,
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // TODO: Mipmap support
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; // TODO: support mipmapped textures
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f; // TODO: Mipmap support (maxLod should be num_mips -1)
+    samplerInfo.maxLod = 0.0f; // TODO: set to num_mips - 1 when generating mipmaps
 
     if (vkCreateSampler(device_, &samplerInfo, nullptr, &outTextureSampler) != VK_SUCCESS) {
         // Log error

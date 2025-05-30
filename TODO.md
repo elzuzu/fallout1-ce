@@ -18,6 +18,7 @@
 - [ ] Compléter le moteur Vulkan (pipeline 3D complet, gestion commandes, shaders).
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
+- [ ] Génération automatique des mipmaps pour les textures.
 - [ ] Fallback automatique vers les sprites en cas d'échec 3D.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).
 
