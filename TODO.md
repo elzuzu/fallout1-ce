@@ -11,6 +11,7 @@
 - [x] Gestionnaire de ressources avec cache (`ResourceManager`) et parser `AssetConfig`.
 - [x] Allocateur mémoire Vulkan via VMA.
 - [x] Script `frm_extract.py` pour extraire les FRM et option glTF.
+- [x] Documentation initiale du pipeline Vulkan (voir `docs/vulkan_implementation_guide.md`).
 
 ## À faire
 
