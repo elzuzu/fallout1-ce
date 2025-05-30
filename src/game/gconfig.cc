@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "platform_compat.h"
 
@@ -129,9 +130,13 @@ bool gconfig_init(bool isMapper, int argc, char** argv)
         strcpy(gconfig_file_name, GAME_CONFIG_FILE_NAME);
     }
 
-    // Read contents of `fallout.cfg` into config. The values from the file
-    // will override the defaults above.
-    config_load(&game_config, gconfig_file_name, false);
+    // Optionally load `fallout.cfg` if configuration files are enabled.
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    if (use_config != NULL && strcmp(use_config, "1") == 0) {
+        // Read contents of `fallout.cfg` into config. The values from the file
+        // will override the defaults above.
+        config_load(&game_config, gconfig_file_name, false);
+    }
 
     // Add key-values from command line, which overrides both defaults and
     // whatever was loaded from `fallout.cfg`.
@@ -151,8 +156,11 @@ bool gconfig_save()
         return false;
     }
 
-    if (!config_save(&game_config, gconfig_file_name, false)) {
-        return false;
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    if (use_config != NULL && strcmp(use_config, "1") == 0) {
+        if (!config_save(&game_config, gconfig_file_name, false)) {
+            return false;
+        }
     }
 
     return true;
@@ -170,8 +178,11 @@ bool gconfig_exit(bool shouldSave)
     bool result = true;
 
     if (shouldSave) {
-        if (!config_save(&game_config, gconfig_file_name, false)) {
-            result = false;
+        const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+        if (use_config != NULL && strcmp(use_config, "1") == 0) {
+            if (!config_save(&game_config, gconfig_file_name, false)) {
+                result = false;
+            }
         }
     }
 

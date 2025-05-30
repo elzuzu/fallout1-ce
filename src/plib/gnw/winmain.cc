@@ -34,6 +34,10 @@ char GNW95_title[256];
 static void show_render_backend_launcher()
 {
 #if !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IOS)
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    if (use_config == NULL || strcmp(use_config, "1") != 0) {
+        return;
+    }
     Config config;
     if (!config_init(&config)) {
         return;
