@@ -8,38 +8,7 @@
 
 namespace fallout {
 namespace {
-    struct VulkanContext {
-        VkInstance instance = VK_NULL_HANDLE;
-        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-        VkDevice device = VK_NULL_HANDLE;
-        VkQueue graphicsQueue = VK_NULL_HANDLE;
-        uint32_t graphicsQueueFamily = 0;
-        VkSurfaceKHR surface = VK_NULL_HANDLE;
-        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        VkFormat swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
-        VkExtent2D swapchainExtent {};
-        std::vector<VkImage> swapchainImages;
-        std::vector<VkImageView> swapchainImageViews;
-        VkCommandPool commandPool = VK_NULL_HANDLE;
-        VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-        VkSemaphore imageAvailable = VK_NULL_HANDLE;
-        VkSemaphore renderFinished = VK_NULL_HANDLE;
-        VkFence inFlight = VK_NULL_HANDLE;
-        uint32_t width = 0;
-        uint32_t height = 0;
-
-        // Offscreen rendering resources for low resolution rendering
-        VkImage internalImage = VK_NULL_HANDLE;
-        VkDeviceMemory internalImageMemory = VK_NULL_HANDLE;
-        VkImageView internalImageView = VK_NULL_HANDLE;
-        VkExtent2D internalExtent{};
-
-        // SDL surfaces used by the engine when running with the Vulkan
-        // backend. These mirror the surfaces provided by the SDL renderer
-        // but are not yet wired into the actual Vulkan rendering pipeline.
-        SDL_Surface* frameSurface = nullptr;        // 8-bit indexed surface
-        SDL_Surface* frameTextureSurface = nullptr; // 32-bit RGBA surface
-    } gVulkan;
+    VulkanRenderer gVulkan;
 
     static uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
     {
@@ -59,7 +28,7 @@ namespace {
         gVulkan.internalExtent.width = gVulkan.swapchainExtent.width / 2;
         gVulkan.internalExtent.height = gVulkan.swapchainExtent.height / 2;
 
-        VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        VkImageCreateInfo imageInfo { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent.width = gVulkan.internalExtent.width;
         imageInfo.extent.height = gVulkan.internalExtent.height;
@@ -79,7 +48,7 @@ namespace {
         VkMemoryRequirements memReq;
         vkGetImageMemoryRequirements(gVulkan.device, gVulkan.internalImage, &memReq);
 
-        VkMemoryAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        VkMemoryAllocateInfo allocInfo { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         allocInfo.allocationSize = memReq.size;
         allocInfo.memoryTypeIndex = find_memory_type(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -88,7 +57,7 @@ namespace {
 
         vkBindImageMemory(gVulkan.device, gVulkan.internalImage, gVulkan.internalImageMemory, 0);
 
-        VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        VkImageViewCreateInfo viewInfo { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.image = gVulkan.internalImage;
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format = gVulkan.swapchainImageFormat;
@@ -318,12 +287,25 @@ bool vulkan_render_init(VideoOptions* options)
     if (vkCreateCommandPool(gVulkan.device, &poolInfo, nullptr, &gVulkan.commandPool) != VK_SUCCESS)
         return false;
 
+    constexpr uint32_t kMaxFramesInFlight = 2;
+    gVulkan.commandBuffers.resize(kMaxFramesInFlight);
     VkCommandBufferAllocateInfo cmdInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     cmdInfo.commandPool = gVulkan.commandPool;
     cmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmdInfo.commandBufferCount = 1;
-    if (vkAllocateCommandBuffers(gVulkan.device, &cmdInfo, &gVulkan.commandBuffer) != VK_SUCCESS)
+    cmdInfo.commandBufferCount = kMaxFramesInFlight;
+    if (vkAllocateCommandBuffers(gVulkan.device, &cmdInfo, gVulkan.commandBuffers.data()) != VK_SUCCESS)
         return false;
+
+    VkDescriptorPoolSize poolSize { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaxFramesInFlight };
+    VkDescriptorPoolCreateInfo descPoolInfo { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+    descPoolInfo.poolSizeCount = 1;
+    descPoolInfo.pPoolSizes = &poolSize;
+    descPoolInfo.maxSets = kMaxFramesInFlight;
+    if (vkCreateDescriptorPool(gVulkan.device, &descPoolInfo, nullptr, &gVulkan.descriptorPool) != VK_SUCCESS)
+        return false;
+
+    VkPipelineCacheCreateInfo cacheInfo { VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+    vkCreatePipelineCache(gVulkan.device, &cacheInfo, nullptr, &gVulkan.pipelineCache);
 
     VkSemaphoreCreateInfo semInfo { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     vkCreateSemaphore(gVulkan.device, &semInfo, nullptr, &gVulkan.imageAvailable);
@@ -331,7 +313,11 @@ bool vulkan_render_init(VideoOptions* options)
 
     VkFenceCreateInfo fenceInfo { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(gVulkan.device, &fenceInfo, nullptr, &gVulkan.inFlight);
+    gVulkan.inFlightFences.resize(kMaxFramesInFlight);
+    for (uint32_t i = 0; i < kMaxFramesInFlight; ++i) {
+        vkCreateFence(gVulkan.device, &fenceInfo, nullptr, &gVulkan.inFlightFences[i]);
+    }
+    gVulkan.currentFrame = 0;
 
     return true;
 }
@@ -343,9 +329,17 @@ void vulkan_render_exit()
 
     vkDeviceWaitIdle(gVulkan.device);
 
-    vkDestroyFence(gVulkan.device, gVulkan.inFlight, nullptr);
+    for (VkFence f : gVulkan.inFlightFences) {
+        vkDestroyFence(gVulkan.device, f, nullptr);
+    }
+    gVulkan.inFlightFences.clear();
     vkDestroySemaphore(gVulkan.device, gVulkan.renderFinished, nullptr);
     vkDestroySemaphore(gVulkan.device, gVulkan.imageAvailable, nullptr);
+
+    if (gVulkan.descriptorPool != VK_NULL_HANDLE)
+        vkDestroyDescriptorPool(gVulkan.device, gVulkan.descriptorPool, nullptr);
+    if (gVulkan.pipelineCache != VK_NULL_HANDLE)
+        vkDestroyPipelineCache(gVulkan.device, gVulkan.pipelineCache, nullptr);
 
     vkDestroyCommandPool(gVulkan.device, gVulkan.commandPool, nullptr);
 
@@ -397,42 +391,45 @@ void vulkan_render_present()
     if (gVulkan.device == VK_NULL_HANDLE)
         return;
 
-    vkWaitForFences(gVulkan.device, 1, &gVulkan.inFlight, VK_TRUE, UINT64_MAX);
-    vkResetFences(gVulkan.device, 1, &gVulkan.inFlight);
+    VkCommandBuffer cmdBuffer = gVulkan.commandBuffers[gVulkan.currentFrame];
+    VkFence inFlight = gVulkan.inFlightFences[gVulkan.currentFrame];
+
+    vkWaitForFences(gVulkan.device, 1, &inFlight, VK_TRUE, UINT64_MAX);
+    vkResetFences(gVulkan.device, 1, &inFlight);
 
     uint32_t imageIndex = 0;
     vkAcquireNextImageKHR(gVulkan.device, gVulkan.swapchain, UINT64_MAX, gVulkan.imageAvailable, VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(gVulkan.commandBuffer, 0);
+    vkResetCommandBuffer(cmdBuffer, 0);
     VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    vkBeginCommandBuffer(gVulkan.commandBuffer, &beginInfo);
+    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
     // Render to the low resolution offscreen image
-    VkClearValue clear{};
+    VkClearValue clear {};
     clear.color.float32[0] = 0.f;
     clear.color.float32[1] = 0.f;
     clear.color.float32[2] = 0.f;
     clear.color.float32[3] = 1.f;
 
-    VkRenderingAttachmentInfo offscreenAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+    VkRenderingAttachmentInfo offscreenAttachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
     offscreenAttachment.imageView = gVulkan.internalImageView;
     offscreenAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     offscreenAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     offscreenAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     offscreenAttachment.clearValue = clear;
 
-    VkRenderingInfo offscreenInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-    offscreenInfo.renderArea.offset = {0, 0};
+    VkRenderingInfo offscreenInfo { VK_STRUCTURE_TYPE_RENDERING_INFO };
+    offscreenInfo.renderArea.offset = { 0, 0 };
     offscreenInfo.renderArea.extent = gVulkan.internalExtent;
     offscreenInfo.layerCount = 1;
     offscreenInfo.colorAttachmentCount = 1;
     offscreenInfo.pColorAttachments = &offscreenAttachment;
 
-    vkCmdBeginRendering(gVulkan.commandBuffer, &offscreenInfo);
-    vkCmdEndRendering(gVulkan.commandBuffer);
+    vkCmdBeginRendering(cmdBuffer, &offscreenInfo);
+    vkCmdEndRendering(cmdBuffer);
 
     // Transition offscreen image for blit
-    VkImageMemoryBarrier offscreenBarrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    VkImageMemoryBarrier offscreenBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     offscreenBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     offscreenBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     offscreenBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -443,10 +440,10 @@ void vulkan_render_present()
     offscreenBarrier.subresourceRange.layerCount = 1;
     offscreenBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     offscreenBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &offscreenBarrier);
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &offscreenBarrier);
 
     // Transition swapchain image for blit destination
-    VkImageMemoryBarrier swapBarrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    VkImageMemoryBarrier swapBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     swapBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     swapBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     swapBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -457,31 +454,31 @@ void vulkan_render_present()
     swapBarrier.subresourceRange.layerCount = 1;
     swapBarrier.srcAccessMask = 0;
     swapBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
 
     // Blit with linear filter to upscale
-    VkImageBlit blit{};
+    VkImageBlit blit {};
     blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.srcSubresource.layerCount = 1;
-    blit.srcOffsets[0] = {0, 0, 0};
-    blit.srcOffsets[1] = {static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1};
+    blit.srcOffsets[0] = { 0, 0, 0 };
+    blit.srcOffsets[1] = { static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1 };
     blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.dstSubresource.layerCount = 1;
-    blit.dstOffsets[0] = {0, 0, 0};
-    blit.dstOffsets[1] = {static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1};
+    blit.dstOffsets[0] = { 0, 0, 0 };
+    blit.dstOffsets[1] = { static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1 };
 
-    vkCmdBlitImage(gVulkan.commandBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                   1, &blit, VK_FILTER_LINEAR);
+    vkCmdBlitImage(cmdBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit, VK_FILTER_LINEAR);
 
     // Transition swapchain image for presentation
     swapBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     swapBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     swapBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     swapBarrier.dstAccessMask = 0;
-    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
 
-    vkEndCommandBuffer(gVulkan.commandBuffer);
+    vkEndCommandBuffer(cmdBuffer);
 
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo submit { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -489,11 +486,11 @@ void vulkan_render_present()
     submit.pWaitSemaphores = &gVulkan.imageAvailable;
     submit.pWaitDstStageMask = &waitStage;
     submit.commandBufferCount = 1;
-    submit.pCommandBuffers = &gVulkan.commandBuffer;
+    submit.pCommandBuffers = &cmdBuffer;
     submit.signalSemaphoreCount = 1;
     submit.pSignalSemaphores = &gVulkan.renderFinished;
 
-    vkQueueSubmit(gVulkan.graphicsQueue, 1, &submit, gVulkan.inFlight);
+    vkQueueSubmit(gVulkan.graphicsQueue, 1, &submit, inFlight);
 
     VkPresentInfoKHR present { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
     present.waitSemaphoreCount = 1;
@@ -503,6 +500,8 @@ void vulkan_render_present()
     present.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(gVulkan.graphicsQueue, &present);
+
+    gVulkan.currentFrame = (gVulkan.currentFrame + 1) % gVulkan.commandBuffers.size();
 }
 
 SDL_Surface* vulkan_render_get_surface()
