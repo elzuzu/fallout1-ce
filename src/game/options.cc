@@ -13,6 +13,7 @@
 #include "game/game.h"
 #include "game/gconfig.h"
 #include "game/gmouse.h"
+#include "game/graphics_advanced.h"
 #include "game/graphlib.h"
 #include "game/gsound.h"
 #include "game/loadsave.h"
@@ -433,6 +434,10 @@ int do_options()
             case KEY_UNDERSCORE:
             case KEY_MINUS:
                 DecGamma();
+                break;
+            case KEY_UPPERCASE_G:
+            case KEY_LOWERCASE_G:
+                do_graphics_advanced();
                 break;
             }
         }
