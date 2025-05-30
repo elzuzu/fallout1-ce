@@ -13,6 +13,7 @@
 ### Infrastructure Vulkan/3D
 - [ ] Compléter le moteur Vulkan (pipeline 3D complet, gestion commandes, shaders).
 - [ ] Gestionnaire de ressources hybride (sprites + modèles 3D).
+- [ ] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
 - [ ] Fallback automatique vers les sprites en cas d'échec 3D.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).
 

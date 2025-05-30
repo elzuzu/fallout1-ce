@@ -271,6 +271,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/plib/gnw/touch.cc"
     "src/plib/gnw/touch.h"
     "src/render/render.cc"
+    "src/render/vulkan_memory_manager.cc"
     "src/render/vulkan_render.cc"
 )
 
