@@ -21,11 +21,30 @@ Download and copy `fallout-ce.exe` to your `Fallout` folder. It serves as a drop
 
 ## Configuration
 
-The main configuration file is `fallout.cfg`. There are several important settings you might need to adjust for your installation. Depending on your Fallout distribution main game assets `master.dat`, `critter.dat`, and `data` folder might be either all lowercased, or all uppercased. You can either update `master_dat`, `critter_dat`, `master_patches` and `critter_patches` settings to match your file names, or rename files to match entries in your `fallout.cfg`.
+The launcher contains default configuration so the game works out of the box. If
+you want to load `fallout.cfg` or `f1_res.ini` anyway, set the environment
+variable `F1CE_USE_CONFIG_FILES=1`.
 
-The `sound` folder (with `music` folder inside) might be located either in `data` folder, or be in the Fallout folder. Update `music_path1` setting to match your hierarchy, usually it's `data/sound/music/` or `sound/music/`. Make sure it match your path exactly (so it might be `SOUND/MUSIC/` if you've installed Fallout from CD). Music files themselves (with `ACM` extension) should be all uppercased, regardless of `sound` and `music` folders.
+You can also tweak a few options via environment variables:
 
-The second configuration file is `f1_res.ini`. Use it to change game window size and enable/disable fullscreen mode.
+- `F1CE_WIDTH` and `F1CE_HEIGHT` – desired resolution (minimum 640×480).
+- `F1CE_WINDOWED` – set to `1` for windowed mode.
+- `F1CE_RENDER_BACKEND` – `SDL` or `VULKAN`.
+
+When `F1CE_USE_CONFIG_FILES` is enabled the main configuration file is
+`fallout.cfg`. Depending on your Fallout distribution main game assets
+`master.dat`, `critter.dat`, and `data` folder might be either all lowercased or
+all uppercased. You can either update `master_dat`, `critter_dat`,
+`master_patches` and `critter_patches` settings to match your file names, or
+rename files to match entries in your `fallout.cfg`.
+
+The `sound` folder (with `music` folder inside) might be located either in `data`
+folder, or be in the Fallout folder. Update `music_path1` accordingly, usually
+it's `data/sound/music/` or `sound/music/`. Music files themselves (with `ACM`
+extension) should be all uppercased, regardless of `sound` and `music` folders.
+
+`f1_res.ini` controls window size and fullscreen mode and supports the following
+format:
 
 ```ini
 [MAIN]
@@ -42,7 +61,7 @@ variable.
 Recommendations:
 - **Desktops**: Use any size you see fit.
 
-In time this stuff will receive in-game interface, right now you have to do it manually.
+These variables allow simple tweaks without editing configuration files.
 
 ## Contributing
 

@@ -152,8 +152,11 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
 
     RenderBackend backend = RenderBackend::SDL;
 
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    bool load_res = use_config != NULL && strcmp(use_config, "1") == 0;
+
     Config resolutionConfig;
-    if (config_init(&resolutionConfig)) {
+    if (load_res && config_init(&resolutionConfig)) {
         if (config_load(&resolutionConfig, "f1_res.ini", false)) {
             int screenWidth;
             if (config_get_value(&resolutionConfig, "MAIN", "SCR_WIDTH", &screenWidth)) {
@@ -185,6 +188,26 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
             }
         }
         config_exit(&resolutionConfig);
+    }
+
+    const char* envWidth = getenv("F1CE_WIDTH");
+    if (envWidth != nullptr) {
+        video_options.width = std::max(atoi(envWidth), 640);
+    }
+
+    const char* envHeight = getenv("F1CE_HEIGHT");
+    if (envHeight != nullptr) {
+        video_options.height = std::max(atoi(envHeight), 480);
+    }
+
+    const char* envWindowed = getenv("F1CE_WINDOWED");
+    if (envWindowed != nullptr) {
+        video_options.fullscreen = strcmp(envWindowed, "1") != 0;
+    }
+
+    const char* envBackend2 = getenv("F1CE_RENDER_BACKEND");
+    if (envBackend2 != nullptr && compat_stricmp(envBackend2, "VULKAN") == 0) {
+        backend = RenderBackend::VULKAN;
     }
 
     const char* envBackend = getenv("FALLOUT_RENDER_BACKEND");
