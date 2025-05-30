@@ -7,6 +7,7 @@
   - Upscaling via blit et surfaces SDL minimales.
   - Sélection du backend au lancement (modification `winmain`).
 - [ ] Pas encore d'intégration 3D ou de pipeline hybride.
+- [x] Pipeline Vulkan 2D basique pour les sprites.
 
 ## À faire
 
@@ -33,4 +34,3 @@
 - [ ] **Phase 3 :** extension contrôlée (quelques créatures et portes principales).
 - [ ] **Phase 4 :** expansion (objets interactifs, optimisations LOD, instancing).
 - [ ] **Phase 5 :** polish final et documentation.
-
