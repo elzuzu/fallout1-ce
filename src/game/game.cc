@@ -18,6 +18,7 @@
 #include "game/fontmgr.h"
 #include "game/gconfig.h"
 #include "game/gdialog.h"
+#include "game/graphics_advanced.h"
 #include "game/gmemory.h"
 #include "game/gmouse.h"
 #include "game/gmovie.h"
@@ -205,8 +206,14 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
                     backend = RenderBackend::VULKAN;
                 }
             }
+
+            graphics_advanced_load();
+            graphics_advanced_apply();
         }
         config_exit(&resolutionConfig);
+    } else {
+        graphics_advanced_load();
+        graphics_advanced_apply();
     }
 
     const char* envWidth = getenv("F1CE_WIDTH");

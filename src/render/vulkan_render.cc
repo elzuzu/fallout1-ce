@@ -1,5 +1,6 @@
 #include "render/vulkan_render.h"
 #include "plib/gnw/svga.h"
+#include "game/graphics_advanced.h"
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -119,6 +120,18 @@ namespace {
         swapInfo.preTransform = surfaceCaps.currentTransform;
         swapInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         swapInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        if (!gGraphicsAdvanced.vsync) {
+            uint32_t modeCount = 0;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gVulkan.physicalDevice, gVulkan.surface, &modeCount, nullptr);
+            std::vector<VkPresentModeKHR> modes(modeCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(gVulkan.physicalDevice, gVulkan.surface, &modeCount, modes.data());
+            for (VkPresentModeKHR mode : modes) {
+                if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+                    swapInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+                    break;
+                }
+            }
+        }
         swapInfo.clipped = VK_TRUE;
 
         if (vkCreateSwapchainKHR(gVulkan.device, &swapInfo, nullptr, &gVulkan.swapchain) != VK_SUCCESS)
@@ -226,11 +239,20 @@ bool vulkan_render_init(VideoOptions* options)
     SDL_Vulkan_GetInstanceExtensions(gSdlWindow, &extCount, nullptr);
     std::vector<const char*> extensions(extCount);
     SDL_Vulkan_GetInstanceExtensions(gSdlWindow, &extCount, extensions.data());
+    if (gGraphicsAdvanced.validation) {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        extCount = static_cast<unsigned int>(extensions.size());
+    }
 
     VkInstanceCreateInfo instInfo { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
     instInfo.pApplicationInfo = &appInfo;
     instInfo.enabledExtensionCount = extCount;
     instInfo.ppEnabledExtensionNames = extensions.data();
+    const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+    if (gGraphicsAdvanced.validation) {
+        instInfo.enabledLayerCount = 1;
+        instInfo.ppEnabledLayerNames = layers;
+    }
 
     if (vkCreateInstance(&instInfo, nullptr, &gVulkan.instance) != VK_SUCCESS)
         return false;
@@ -244,7 +266,10 @@ bool vulkan_render_init(VideoOptions* options)
         return false;
     std::vector<VkPhysicalDevice> gpus(gpuCount);
     vkEnumeratePhysicalDevices(gVulkan.instance, &gpuCount, gpus.data());
-    gVulkan.physicalDevice = gpus[0];
+    uint32_t index = 0;
+    if (gGraphicsAdvanced.gpuIndex < static_cast<int>(gpuCount))
+        index = gGraphicsAdvanced.gpuIndex;
+    gVulkan.physicalDevice = gpus[index];
 
     uint32_t familyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(gVulkan.physicalDevice, &familyCount, nullptr);
