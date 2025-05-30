@@ -307,6 +307,10 @@ cmake_minimum_required(VERSION 3.13)
                                                                                                                                                                                 "src/graphics/vulkan/SpriteBatch.cpp"
                                                                                                                                                                                 "src/graphics/vulkan/SpriteBatch.hpp"
                                                                                                                                                                                 "src/graphics/vulkan/VulkanSpritePipeline.cpp"
+                "src/graphics/renderer_interface.h"
+                "src/graphics/renderer_factory.h"
+                "src/graphics/renderer_factory.cpp"
+                "src/graphics/sdl_renderer.cpp"
                                                                                                                                                                                 "src/graphics/vulkan/VulkanSpritePipeline.h")
 
                                                                                                                                                                                 if (IOS)
