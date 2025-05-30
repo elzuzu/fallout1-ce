@@ -303,7 +303,10 @@ bool vulkan_render_init(VideoOptions* options)
 
     gVulkan.graphicsPipeline3D_ = new vk::GraphicsPipeline3D(gVulkan.device);
     if (!gVulkan.graphicsPipeline3D_->Create(gVulkan.swapchainImageFormat, gVulkan.pipelineCache)) {
-        // ... (fallback logic as before) ...
+        fprintf(stderr, "[Vulkan] Failed to create 3D pipeline, falling back to 2D sprites.\n");
+        gVulkan.fallbackTo2D_ = true;
+        delete gVulkan.graphicsPipeline3D_;
+        gVulkan.graphicsPipeline3D_ = nullptr;
     } else {
         gVulkan.combinedDescriptorSetLayout_ = gVulkan.graphicsPipeline3D_->GetDescriptorSetLayout();
     }
@@ -321,7 +324,10 @@ bool vulkan_render_init(VideoOptions* options)
         setAllocInfo.pSetLayouts = layouts.data();
         gVulkan.combinedDescriptorSets_.resize(MAX_FRAMES_IN_FLIGHT);
         if (vkAllocateDescriptorSets(gVulkan.device, &setAllocInfo, gVulkan.combinedDescriptorSets_.data()) != VK_SUCCESS) {
-            // ... (error handling, fallback) ...
+            fprintf(stderr, "[Vulkan] Failed to allocate descriptor sets, switching to 2D mode.\n");
+            gVulkan.fallbackTo2D_ = true;
+            gVulkan.combinedDescriptorSets_.clear();
+            gVulkan.matricesUBO_.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
         } else {
             // Initial UBO update for descriptor sets
             for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
