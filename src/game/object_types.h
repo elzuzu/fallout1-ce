@@ -3,6 +3,12 @@
 
 namespace fallout {
 
+// Enum to define how an object should be rendered
+typedef enum RenderType {
+    RENDER_TYPE_DEFAULT_SPRITE, // Default behavior, uses existing sprite logic
+    RENDER_TYPE_MODEL_3D        // Will use 3D model rendering path
+} RenderType;
+
 // Rotation
 typedef enum Rotation {
     ROTATION_NE, // 0
@@ -283,6 +289,12 @@ typedef struct Object {
     int sid; // obj_sid
     Object* owner;
     int field_80;
+
+    // Fields for 3D model rendering choice
+    RenderType renderType;      // Specifies whether to use sprite or 3D model
+    int modelNameId;            // ID or index to the model name/path, to be resolved by a manager
+                                // Could also be a direct char* if memory management is handled.
+                                // Using int for now, assuming an ID system. Set to -1 or 0 if no model.
 } Object;
 
 typedef struct ObjectListNode {
