@@ -21,6 +21,8 @@
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).
+- [ ] Implémenter une transition intelligente Sprite/3D avec cache des sprites.
+- [ ] Mettre en place une interface de rendu unifiée (`RenderObject`).
 
 ### Intégration dans la boucle de jeu
 - [ ] Adaptation des entités (critter, objets) pour choisir entre sprite et modèle.

@@ -75,3 +75,31 @@ VULKAN_GPU_INDEX=0
 The build integrates a lightweight copy of `tinygltf` located in `external/tinygltf`.
 No additional dependencies are required. Enable or disable glTF tests through the
 standard `f1_tests` target.
+
+### 2.2 Transition intelligente
+
+**Stratégie de fallback** :
+1. **Niveau 1** : 3D → Sprite Vulkan (garde les performances GPU)
+2. **Niveau 2** : Sprite Vulkan → Software (compatibility totale)
+
+**Cache des sprites** :
+- Pré-rendre les modèles 3D en sprites dans différentes orientations
+- Système de LOD basé sur la distance
+- Compression des textures pour économiser la VRAM
+
+### 2.3 Interface de rendu unifiée
+
+```c
+typedef struct RenderObject {
+    ObjectType type;
+    union {
+        ModelAsset* model;
+        SpriteData* sprite;
+    } data;
+    Transform transform;
+    MaterialID material;
+} RenderObject;
+
+// API unifiée
+void render_object(RenderObject* obj, RenderMode mode);
+```
