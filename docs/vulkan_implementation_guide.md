@@ -104,3 +104,11 @@ typedef struct AnimationChannel {
 - Vertex shader avec blend weights
 - Support jusqu'à 4 joints par vertex (limitation glTF)
 
+
+## Nouvelles améliorations Vulkan
+- Recréation robuste du swapchain avec gestion de `VK_ERROR_DEVICE_LOST`.
+- Conversion palette 8 bits en RGBA via LUT 1D sur GPU.
+- Décodage vidéo YUV420 en RGBA effectué par un pipeline compute utilisant `KHR_sampler_ycbcr_conversion`.
+- Cache de pipeline persistant sauvegardé dans `pipeline_cache.bin`.
+- Allocation dUBO persistante exposée via `VK_KHR_buffer_device_address`.
+

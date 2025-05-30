@@ -91,10 +91,11 @@ namespace {
 
 } // namespace
 
-bool VulkanSwapchain::create(VkDevice device,
+VkResult VulkanSwapchain::create(VkDevice device,
     VkPhysicalDevice physicalDevice,
     VkSurfaceKHR surface,
-    SDL_Window* window)
+    SDL_Window* window,
+    VkRenderPass renderPass)
 {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice, surface);
 
@@ -134,8 +135,9 @@ bool VulkanSwapchain::create(VkDevice device,
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain_) != VK_SUCCESS) {
-        return false;
+    VkResult res = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain_);
+    if (res != VK_SUCCESS) {
+        return res;
     }
 
     uint32_t actualCount = 0;
@@ -162,16 +164,39 @@ bool VulkanSwapchain::create(VkDevice device,
         viewInfo.subresourceRange.levelCount = 1;
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
-        if (vkCreateImageView(device, &viewInfo, nullptr, &swapchainImageViews_[i]) != VK_SUCCESS) {
-            return false;
+        res = vkCreateImageView(device, &viewInfo, nullptr, &swapchainImageViews_[i]);
+        if (res != VK_SUCCESS) {
+            return res;
         }
     }
 
-    return true;
+    // create framebuffers
+    renderPass_ = renderPass;
+    swapchainFramebuffers_.resize(swapchainImageViews_.size());
+    for (size_t i = 0; i < swapchainImageViews_.size(); ++i) {
+        VkImageView attachments[] = { swapchainImageViews_[i] };
+        VkFramebufferCreateInfo fbInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+        fbInfo.renderPass = renderPass;
+        fbInfo.attachmentCount = 1;
+        fbInfo.pAttachments = attachments;
+        fbInfo.width = swapchainExtent_.width;
+        fbInfo.height = swapchainExtent_.height;
+        fbInfo.layers = 1;
+        res = vkCreateFramebuffer(device, &fbInfo, nullptr, &swapchainFramebuffers_[i]);
+        if (res != VK_SUCCESS) {
+            return res;
+        }
+    }
+
+    return VK_SUCCESS;
 }
 
 void VulkanSwapchain::destroy(VkDevice device)
 {
+    for (VkFramebuffer fb : swapchainFramebuffers_) {
+        vkDestroyFramebuffer(device, fb, nullptr);
+    }
+    swapchainFramebuffers_.clear();
     for (VkImageView view : swapchainImageViews_) {
         vkDestroyImageView(device, view, nullptr);
     }
@@ -180,6 +205,29 @@ void VulkanSwapchain::destroy(VkDevice device)
         vkDestroySwapchainKHR(device, swapchain_, nullptr);
         swapchain_ = VK_NULL_HANDLE;
     }
+}
+
+VkResult VulkanSwapchain::recreate(VkDevice device,
+    VkPhysicalDevice physicalDevice,
+    VkSurfaceKHR surface,
+    SDL_Window* window)
+{
+    vkDeviceWaitIdle(device);
+
+    for (VkFramebuffer fb : swapchainFramebuffers_) {
+        vkDestroyFramebuffer(device, fb, nullptr);
+    }
+    swapchainFramebuffers_.clear();
+
+    destroy(device);
+
+    VkResult res = create(device, physicalDevice, surface, window, renderPass_);
+    if (res == VK_ERROR_OUT_OF_DATE_KHR) {
+        // Window resized again, try once more
+        destroy(device);
+        res = create(device, physicalDevice, surface, window, renderPass_);
+    }
+    return res;
 }
 
 } // namespace fallout
