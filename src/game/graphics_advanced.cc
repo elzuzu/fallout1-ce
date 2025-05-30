@@ -14,7 +14,7 @@
 
 namespace fallout {
 
-GraphicsAdvancedOptions gGraphicsAdvanced{0, 2, 1, true, 60, false};
+GraphicsAdvancedOptions gGraphicsAdvanced{0, 2, 1, true, 60, false, false};
 
 static std::vector<std::string> enumerate_gpus()
 {
@@ -69,6 +69,7 @@ void graphics_advanced_load()
         configGetBool(&cfg, "MAIN", "VSYNC", &gGraphicsAdvanced.vsync);
         config_get_value(&cfg, "MAIN", "FPS_LIMIT", &gGraphicsAdvanced.fpsLimit);
         configGetBool(&cfg, "MAIN", "VK_VALIDATION", &gGraphicsAdvanced.validation);
+        configGetBool(&cfg, "MAIN", "VK_MULTITHREADED", &gGraphicsAdvanced.multithreaded);
     }
 
     config_exit(&cfg);
@@ -91,6 +92,7 @@ void graphics_advanced_save()
     configSetBool(&cfg, "MAIN", "VSYNC", gGraphicsAdvanced.vsync);
     config_set_value(&cfg, "MAIN", "FPS_LIMIT", gGraphicsAdvanced.fpsLimit);
     configSetBool(&cfg, "MAIN", "VK_VALIDATION", gGraphicsAdvanced.validation);
+    configSetBool(&cfg, "MAIN", "VK_MULTITHREADED", gGraphicsAdvanced.multithreaded);
     config_save(&cfg, "f1_res.ini", false);
     config_exit(&cfg);
 }
@@ -139,6 +141,10 @@ int do_graphics_advanced()
     int d = win_list_select("Validation Layers", yesno, 2, NULL, 80, 80, 0x10000 | 0x100 | 4);
     if (d != -1)
         gGraphicsAdvanced.validation = d == 1;
+
+    int m = win_list_select("Vulkan Multithreaded", yesno, 2, NULL, 80, 80, 0x10000 | 0x100 | 4);
+    if (m != -1)
+        gGraphicsAdvanced.multithreaded = m == 1;
 
     graphics_advanced_save();
     graphics_advanced_apply();

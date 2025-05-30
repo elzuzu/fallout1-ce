@@ -10,6 +10,7 @@ struct GraphicsAdvancedOptions {
     bool vsync;
     int fpsLimit;
     bool validation;
+    bool multithreaded;
 };
 
 extern GraphicsAdvancedOptions gGraphicsAdvanced;

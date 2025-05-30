@@ -23,8 +23,8 @@ public:
     std::vector<VkImageView> swapchainImageViews;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
-    VkSemaphore imageAvailable = VK_NULL_HANDLE;
-    VkSemaphore renderFinished = VK_NULL_HANDLE;
+    std::vector<VkSemaphore> imageAvailable;
+    std::vector<VkSemaphore> renderFinished;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkPipelineCache pipelineCache = VK_NULL_HANDLE;
     std::vector<VkFence> inFlightFences;
@@ -38,6 +38,8 @@ public:
     SDL_Surface* frameSurface = nullptr;
     SDL_Surface* frameTextureSurface = nullptr;
 };
+
+extern VulkanRenderer gVulkan;
 
 // Initializes the Vulkan renderer. Returns true on success.
 bool vulkan_render_init(VideoOptions* options);
