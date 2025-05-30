@@ -9,6 +9,8 @@
 #endif
 
 #include "game/main.h"
+#include "game/config.h"
+#include "platform_compat.h"
 #include "plib/gnw/gnw.h"
 #include "plib/gnw/svga.h"
 
@@ -28,6 +30,65 @@ HANDLE GNW95_mutex = NULL;
 
 // 0x6B0760
 char GNW95_title[256];
+
+static void show_render_backend_launcher()
+{
+#if !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IOS)
+    Config config;
+    if (!config_init(&config)) {
+        return;
+    }
+
+    RenderBackend backend = RenderBackend::SDL;
+    if (config_load(&config, "f1_res.ini", false)) {
+        char* backendName;
+        if (config_get_string(&config, "MAIN", "RENDER_BACKEND", &backendName)) {
+            if (compat_stricmp(backendName, "VULKAN") == 0) {
+                backend = RenderBackend::VULKAN;
+            }
+        }
+    }
+
+    SDL_MessageBoxButtonData buttons[] = {
+        { backend == RenderBackend::SDL ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT : 0, 0, "SDL" },
+        { backend == RenderBackend::VULKAN ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT : 0, 1, "Vulkan" },
+        { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 2, "Quit" },
+    };
+
+    SDL_MessageBoxData messageboxdata = {
+        SDL_MESSAGEBOX_INFORMATION,
+        NULL,
+        "Select Rendering Backend",
+        "Choose which rendering backend to use",
+        SDL_arraysize(buttons),
+        buttons,
+        NULL
+    };
+
+    int buttonid = -1;
+    if (SDL_ShowMessageBox(&messageboxdata, &buttonid) == 0) {
+        const char* name = nullptr;
+        switch (buttonid) {
+        case 0:
+            name = "SDL";
+            break;
+        case 1:
+            name = "VULKAN";
+            break;
+        default:
+            config_exit(&config);
+            exit(0);
+        }
+
+        if (name != nullptr) {
+            config_set_string(&config, "MAIN", "RENDER_BACKEND", name);
+            config_save(&config, "f1_res.ini", false);
+        }
+    }
+
+    config_exit(&config);
+#endif
+}
 
 int main(int argc, char* argv[])
 {
@@ -57,6 +118,8 @@ int main(int argc, char* argv[])
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
     chdir(SDL_AndroidGetExternalStoragePath());
 #endif
+
+    show_render_backend_launcher();
 
     SDL_ShowCursor(SDL_DISABLE);
 
