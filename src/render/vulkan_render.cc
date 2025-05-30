@@ -4,12 +4,16 @@
 #include "render/vulkan_thread_manager.h"
 #include "render/vulkan_debugger.h"
 #include "render/vulkan_capabilities.h"
+#include "render/post_processor.h"
+#include <cstdlib>
+#include <cstring>
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 namespace fallout {
 
@@ -169,11 +173,15 @@ namespace {
         if (!create_internal_image())
             return false;
 
+        gVulkan.postProcessor.destroy(gVulkan.device);
+        gVulkan.postProcessor.init(gVulkan.device, gVulkan.swapchainImageFormat, gVulkan.swapchainExtent);
+
         return true;
     }
 
     static void destroy_swapchain()
     {
+        gVulkan.postProcessor.destroy(gVulkan.device);
         for (VkImageView view : gVulkan.swapchainImageViews)
             vkDestroyImageView(gVulkan.device, view, nullptr);
         gVulkan.swapchainImageViews.clear();
@@ -244,19 +252,7 @@ namespace {
         swapBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
 
-        VkImageBlit blit {};
-        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        blit.srcSubresource.layerCount = 1;
-        blit.srcOffsets[0] = { 0, 0, 0 };
-        blit.srcOffsets[1] = { static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1 };
-        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        blit.dstSubresource.layerCount = 1;
-        blit.dstOffsets[0] = { 0, 0, 0 };
-        blit.dstOffsets[1] = { static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1 };
-
-        vkCmdBlitImage(cmdBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1, &blit, VK_FILTER_LINEAR);
+        gVulkan.postProcessor.apply(cmdBuffer, gVulkan.internalImage, gVulkan.swapchainImages[imageIndex]);
 
         swapBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         swapBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -426,6 +422,22 @@ bool vulkan_render_init(VideoOptions* options)
 
     if (gGraphicsAdvanced.debugger)
         gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
+
+    // Configure post-processing effects via environment variables
+    const char* fxaaEnv = getenv("F1CE_FXAA");
+    if (fxaaEnv && strcmp(fxaaEnv, "1") == 0)
+        gVulkan.postProcessor.addEffect(std::make_unique<FxaaEffect>());
+    const char* smaaEnv = getenv("F1CE_SMAA");
+    if (smaaEnv && strcmp(smaaEnv, "1") == 0)
+        gVulkan.postProcessor.addEffect(std::make_unique<SmaaEffect>());
+    const char* crtEnv = getenv("F1CE_CRT");
+    if (crtEnv && strcmp(crtEnv, "1") == 0)
+        gVulkan.postProcessor.addEffect(std::make_unique<CrtEffect>());
+    const char* slEnv = getenv("F1CE_SCANLINES");
+    if (slEnv && strcmp(slEnv, "1") == 0)
+        gVulkan.postProcessor.addEffect(std::make_unique<ScanlineEffect>());
+    const char* nearestEnv = getenv("F1CE_NEAREST_UPSCALE");
+    gVulkan.postProcessor.addEffect(std::make_unique<UpscaleEffect>(nearestEnv && strcmp(nearestEnv, "1") == 0));
 
     if (!create_swapchain(gVulkan.width, gVulkan.height))
         return false;
