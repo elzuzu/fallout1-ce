@@ -27,7 +27,90 @@ namespace {
         VkFence inFlight = VK_NULL_HANDLE;
         uint32_t width = 0;
         uint32_t height = 0;
+
+        // Offscreen rendering resources for low resolution rendering
+        VkImage internalImage = VK_NULL_HANDLE;
+        VkDeviceMemory internalImageMemory = VK_NULL_HANDLE;
+        VkImageView internalImageView = VK_NULL_HANDLE;
+        VkExtent2D internalExtent{};
     } gVulkan;
+
+    static uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(gVulkan.physicalDevice, &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    static bool create_internal_image()
+    {
+        gVulkan.internalExtent.width = gVulkan.swapchainExtent.width / 2;
+        gVulkan.internalExtent.height = gVulkan.swapchainExtent.height / 2;
+
+        VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent.width = gVulkan.internalExtent.width;
+        imageInfo.extent.height = gVulkan.internalExtent.height;
+        imageInfo.extent.depth = 1;
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = gVulkan.swapchainImageFormat;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+        if (vkCreateImage(gVulkan.device, &imageInfo, nullptr, &gVulkan.internalImage) != VK_SUCCESS)
+            return false;
+
+        VkMemoryRequirements memReq;
+        vkGetImageMemoryRequirements(gVulkan.device, gVulkan.internalImage, &memReq);
+
+        VkMemoryAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        allocInfo.allocationSize = memReq.size;
+        allocInfo.memoryTypeIndex = find_memory_type(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        if (vkAllocateMemory(gVulkan.device, &allocInfo, nullptr, &gVulkan.internalImageMemory) != VK_SUCCESS)
+            return false;
+
+        vkBindImageMemory(gVulkan.device, gVulkan.internalImage, gVulkan.internalImageMemory, 0);
+
+        VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        viewInfo.image = gVulkan.internalImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = gVulkan.swapchainImageFormat;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(gVulkan.device, &viewInfo, nullptr, &gVulkan.internalImageView) != VK_SUCCESS)
+            return false;
+
+        return true;
+    }
+
+    static void destroy_internal_image()
+    {
+        if (gVulkan.internalImageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(gVulkan.device, gVulkan.internalImageView, nullptr);
+            gVulkan.internalImageView = VK_NULL_HANDLE;
+        }
+        if (gVulkan.internalImage != VK_NULL_HANDLE) {
+            vkDestroyImage(gVulkan.device, gVulkan.internalImage, nullptr);
+            gVulkan.internalImage = VK_NULL_HANDLE;
+        }
+        if (gVulkan.internalImageMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(gVulkan.device, gVulkan.internalImageMemory, nullptr);
+            gVulkan.internalImageMemory = VK_NULL_HANDLE;
+        }
+    }
 
     static bool create_swapchain(uint32_t width, uint32_t height)
     {
@@ -84,6 +167,9 @@ namespace {
                 return false;
         }
 
+        if (!create_internal_image())
+            return false;
+
         return true;
     }
 
@@ -92,6 +178,8 @@ namespace {
         for (VkImageView view : gVulkan.swapchainImageViews)
             vkDestroyImageView(gVulkan.device, view, nullptr);
         gVulkan.swapchainImageViews.clear();
+
+        destroy_internal_image();
 
         if (gVulkan.swapchain != VK_NULL_HANDLE) {
             vkDestroySwapchainKHR(gVulkan.device, gVulkan.swapchain, nullptr);
@@ -268,32 +356,83 @@ void vulkan_render_present()
     VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     vkBeginCommandBuffer(gVulkan.commandBuffer, &beginInfo);
 
-    VkClearValue clear {};
+    // Render to the low resolution offscreen image
+    VkClearValue clear{};
     clear.color.float32[0] = 0.f;
     clear.color.float32[1] = 0.f;
     clear.color.float32[2] = 0.f;
     clear.color.float32[3] = 1.f;
 
-    VkRenderingAttachmentInfo colorAttachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    colorAttachment.imageView = gVulkan.swapchainImageViews[imageIndex];
-    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.clearValue = clear;
+    VkRenderingAttachmentInfo offscreenAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+    offscreenAttachment.imageView = gVulkan.internalImageView;
+    offscreenAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    offscreenAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    offscreenAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    offscreenAttachment.clearValue = clear;
 
-    VkRenderingInfo renderingInfo { VK_STRUCTURE_TYPE_RENDERING_INFO };
-    renderingInfo.renderArea.offset = { 0, 0 };
-    renderingInfo.renderArea.extent = gVulkan.swapchainExtent;
-    renderingInfo.layerCount = 1;
-    renderingInfo.colorAttachmentCount = 1;
-    renderingInfo.pColorAttachments = &colorAttachment;
+    VkRenderingInfo offscreenInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+    offscreenInfo.renderArea.offset = {0, 0};
+    offscreenInfo.renderArea.extent = gVulkan.internalExtent;
+    offscreenInfo.layerCount = 1;
+    offscreenInfo.colorAttachmentCount = 1;
+    offscreenInfo.pColorAttachments = &offscreenAttachment;
 
-    vkCmdBeginRendering(gVulkan.commandBuffer, &renderingInfo);
+    vkCmdBeginRendering(gVulkan.commandBuffer, &offscreenInfo);
     vkCmdEndRendering(gVulkan.commandBuffer);
+
+    // Transition offscreen image for blit
+    VkImageMemoryBarrier offscreenBarrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    offscreenBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    offscreenBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    offscreenBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    offscreenBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    offscreenBarrier.image = gVulkan.internalImage;
+    offscreenBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    offscreenBarrier.subresourceRange.levelCount = 1;
+    offscreenBarrier.subresourceRange.layerCount = 1;
+    offscreenBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    offscreenBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &offscreenBarrier);
+
+    // Transition swapchain image for blit destination
+    VkImageMemoryBarrier swapBarrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    swapBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    swapBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    swapBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    swapBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    swapBarrier.image = gVulkan.swapchainImages[imageIndex];
+    swapBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    swapBarrier.subresourceRange.levelCount = 1;
+    swapBarrier.subresourceRange.layerCount = 1;
+    swapBarrier.srcAccessMask = 0;
+    swapBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
+
+    // Blit with linear filter to upscale
+    VkImageBlit blit{};
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.layerCount = 1;
+    blit.srcOffsets[0] = {0, 0, 0};
+    blit.srcOffsets[1] = {static_cast<int32_t>(gVulkan.internalExtent.width), static_cast<int32_t>(gVulkan.internalExtent.height), 1};
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.layerCount = 1;
+    blit.dstOffsets[0] = {0, 0, 0};
+    blit.dstOffsets[1] = {static_cast<int32_t>(gVulkan.swapchainExtent.width), static_cast<int32_t>(gVulkan.swapchainExtent.height), 1};
+
+    vkCmdBlitImage(gVulkan.commandBuffer, gVulkan.internalImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   gVulkan.swapchainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                   1, &blit, VK_FILTER_LINEAR);
+
+    // Transition swapchain image for presentation
+    swapBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    swapBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    swapBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    swapBarrier.dstAccessMask = 0;
+    vkCmdPipelineBarrier(gVulkan.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &swapBarrier);
 
     vkEndCommandBuffer(gVulkan.commandBuffer);
 
-    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo submit { VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submit.waitSemaphoreCount = 1;
     submit.pWaitSemaphores = &gVulkan.imageAvailable;
