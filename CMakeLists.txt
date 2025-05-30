@@ -310,6 +310,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/graphics/vulkan/MemoryAllocator.hpp"
     "src/graphics/vulkan/PipelineCache.cpp"
     "src/graphics/vulkan/PipelineCache.hpp"
+    "src/graphics/vulkan/VulkanSwapchain.cpp"
+    "src/graphics/vulkan/VulkanSwapchain.h"
     "src/graphics/vulkan/SpriteBatch.cpp"
     "src/graphics/vulkan/SpriteBatch.hpp"
 )
