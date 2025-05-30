@@ -285,6 +285,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/render/post_processor.cc"
     "src/graphics/vulkan/MemoryAllocator.cpp"
     "src/graphics/vulkan/MemoryAllocator.hpp"
+    "src/graphics/vulkan/SpriteBatch.cpp"
+    "src/graphics/vulkan/SpriteBatch.hpp"
 )
 
 if(IOS)

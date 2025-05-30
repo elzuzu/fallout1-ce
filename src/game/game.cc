@@ -138,7 +138,7 @@ static void save_render_backend(RenderBackend backend)
         return;
 
     config_load(&cfg, "f1_res.ini", false);
-    const char* name = backend == RenderBackend::VULKAN ? "VULKAN" : "SDL";
+    const char* name = backend == RenderBackend::VULKAN_BATCH ? "VULKAN_BATCH" : "SDL";
     config_set_string(&cfg, "MAIN", "RENDER_BACKEND", name);
     config_save(&cfg, "f1_res.ini", false);
     config_exit(&cfg);
@@ -202,8 +202,8 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
 
             char* backendName;
             if (config_get_string(&resolutionConfig, "MAIN", "RENDER_BACKEND", &backendName)) {
-                if (compat_stricmp(backendName, "VULKAN") == 0) {
-                    backend = RenderBackend::VULKAN;
+                if (compat_stricmp(backendName, "VULKAN_BATCH") == 0) {
+                    backend = RenderBackend::VULKAN_BATCH;
                 }
             }
 
@@ -232,16 +232,16 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
     }
 
     const char* envBackend2 = getenv("F1CE_RENDER_BACKEND");
-    if (envBackend2 != nullptr && compat_stricmp(envBackend2, "VULKAN") == 0) {
-        backend = RenderBackend::VULKAN;
+    if (envBackend2 != nullptr && compat_stricmp(envBackend2, "VULKAN_BATCH") == 0) {
+        backend = RenderBackend::VULKAN_BATCH;
     }
 
     const char* envBackend = getenv("FALLOUT_RENDER_BACKEND");
-    if (envBackend != nullptr && compat_stricmp(envBackend, "VULKAN") == 0) {
-        backend = RenderBackend::VULKAN;
+    if (envBackend != nullptr && compat_stricmp(envBackend, "VULKAN_BATCH") == 0) {
+        backend = RenderBackend::VULKAN_BATCH;
     }
 
-    if (backend == RenderBackend::VULKAN && !vulkan_is_available()) {
+    if (backend == RenderBackend::VULKAN_BATCH && !vulkan_is_available()) {
         backend = RenderBackend::SDL;
         save_render_backend(backend);
     }

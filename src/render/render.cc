@@ -14,7 +14,7 @@ bool render_init(RenderBackend backend, VideoOptions* options)
     switch (backend) {
     case RenderBackend::SDL:
         return svga_init(options);
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         return vulkan_render_init(options);
     }
 
@@ -27,7 +27,7 @@ void render_exit()
     case RenderBackend::SDL:
         svga_exit();
         break;
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         vulkan_render_exit();
         break;
     }
@@ -49,7 +49,7 @@ void render_handle_window_size_changed()
     case RenderBackend::SDL:
         handleWindowSizeChanged();
         break;
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         vulkan_render_handle_window_size_changed();
         break;
     }
@@ -61,7 +61,7 @@ void render_present()
     case RenderBackend::SDL:
         renderPresent();
         break;
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         vulkan_render_present();
         break;
     }
@@ -79,7 +79,7 @@ SDL_Surface* render_get_surface()
     switch (gBackend) {
     case RenderBackend::SDL:
         return gSdlSurface;
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         return vulkan_render_get_surface();
     }
 
@@ -91,7 +91,7 @@ SDL_Surface* render_get_texture_surface()
     switch (gBackend) {
     case RenderBackend::SDL:
         return gSdlTextureSurface;
-    case RenderBackend::VULKAN:
+    case RenderBackend::VULKAN_BATCH:
         return vulkan_render_get_texture_surface();
     }
 

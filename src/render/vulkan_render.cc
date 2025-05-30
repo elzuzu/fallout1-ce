@@ -135,19 +135,7 @@ namespace {
         swapInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         swapInfo.preTransform = surfaceCaps.currentTransform;
         swapInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        swapInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-        if (!gGraphicsAdvanced.vsync) {
-            uint32_t modeCount = 0;
-            vkGetPhysicalDeviceSurfacePresentModesKHR(gVulkan.physicalDevice, gVulkan.surface, &modeCount, nullptr);
-            std::vector<VkPresentModeKHR> modes(modeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(gVulkan.physicalDevice, gVulkan.surface, &modeCount, modes.data());
-            for (VkPresentModeKHR mode : modes) {
-                if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-                    swapInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-                    break;
-                }
-            }
-        }
+        swapInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
         swapInfo.clipped = VK_TRUE;
 
         if (vkCreateSwapchainKHR(gVulkan.device, &swapInfo, nullptr, &gVulkan.swapchain) != VK_SUCCESS)
@@ -447,17 +435,21 @@ bool vulkan_render_init(VideoOptions* options)
     VkCommandPoolCreateInfo poolInfo { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     poolInfo.queueFamilyIndex = gVulkan.graphicsQueueFamily;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    if (vkCreateCommandPool(gVulkan.device, &poolInfo, nullptr, &gVulkan.commandPool) != VK_SUCCESS)
-        return false;
 
-    constexpr uint32_t kMaxFramesInFlight = 2;
+    constexpr uint32_t kMaxFramesInFlight = 3;
+    gVulkan.commandPools.resize(kMaxFramesInFlight);
     gVulkan.commandBuffers.resize(kMaxFramesInFlight);
-    VkCommandBufferAllocateInfo cmdInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-    cmdInfo.commandPool = gVulkan.commandPool;
-    cmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmdInfo.commandBufferCount = kMaxFramesInFlight;
-    if (vkAllocateCommandBuffers(gVulkan.device, &cmdInfo, gVulkan.commandBuffers.data()) != VK_SUCCESS)
-        return false;
+    for (uint32_t i = 0; i < kMaxFramesInFlight; ++i) {
+        if (vkCreateCommandPool(gVulkan.device, &poolInfo, nullptr, &gVulkan.commandPools[i]) != VK_SUCCESS)
+            return false;
+
+        VkCommandBufferAllocateInfo cmdInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+        cmdInfo.commandPool = gVulkan.commandPools[i];
+        cmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdInfo.commandBufferCount = 1;
+        if (vkAllocateCommandBuffers(gVulkan.device, &cmdInfo, &gVulkan.commandBuffers[i]) != VK_SUCCESS)
+            return false;
+    }
 
     VkDescriptorPoolSize poolSize { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaxFramesInFlight };
     VkDescriptorPoolCreateInfo descPoolInfo { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -519,7 +511,9 @@ void vulkan_render_exit()
         if (gVulkan.pipelineCache != VK_NULL_HANDLE)
             vkDestroyPipelineCache(gVulkan.device, gVulkan.pipelineCache, nullptr);
 
-        vkDestroyCommandPool(gVulkan.device, gVulkan.commandPool, nullptr);
+        for (VkCommandPool p : gVulkan.commandPools)
+            vkDestroyCommandPool(gVulkan.device, p, nullptr);
+        gVulkan.commandPools.clear();
 
         destroy_swapchain();
     }
@@ -579,6 +573,8 @@ void vulkan_render_present()
 
     VkCommandBuffer cmdBuffer = gVulkan.commandBuffers[gVulkan.currentFrame];
     VkFence inFlight = gVulkan.inFlightFences[gVulkan.currentFrame];
+
+    vkResetCommandPool(gVulkan.device, gVulkan.commandPools[gVulkan.currentFrame], 0);
 
     vkWaitForFences(gVulkan.device, 1, &inFlight, VK_TRUE, UINT64_MAX);
     vkResetFences(gVulkan.device, 1, &inFlight);

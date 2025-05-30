@@ -3,7 +3,7 @@
 ## État actuel
 
 - [x] Rendu SDL classique fonctionnel.
-- [x] Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN`.
+- [x] Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN_BATCH`.
   - Upscaling via blit et surfaces SDL minimales.
   - Sélection du backend au lancement (modification `winmain`).
 - [ ] Pas encore d'intégration 3D ou de pipeline hybride.
