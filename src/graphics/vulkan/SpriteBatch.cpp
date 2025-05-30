@@ -23,7 +23,7 @@ bool SpriteBatch::init(VkDevice device, VkPhysicalDevice physicalDevice, uint32_
     VkBufferCreateInfo bufInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufInfo.size = sizeof(verts);
     bufInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    m_vertexAlloc = MemoryAllocator::createBuffer(bufInfo, m_vertexBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    m_vertexAlloc = MemoryAllocator::createVertexBuffer(sizeof(verts), m_vertexBuffer);
 
     bufInfo.size = 1024 * sizeof(Sprite);
     bufInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;

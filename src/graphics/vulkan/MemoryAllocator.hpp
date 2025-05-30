@@ -11,6 +11,7 @@ public:
     // helpers
     static VmaAllocation createBuffer(VkBufferCreateInfo&, VkBuffer&, VmaMemoryUsage);
     static VmaAllocation createImage(VkImageCreateInfo&, VkImage&, VmaMemoryUsage);
+    static VmaAllocation createVertexBuffer(VkDeviceSize, VkBuffer&);
 
 private:
     static VmaAllocator s_alloc;
