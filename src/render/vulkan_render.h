@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "render/post_processor.h"
 
 namespace fallout {
 
@@ -37,6 +38,7 @@ public:
     VkExtent2D internalExtent {};
     SDL_Surface* frameSurface = nullptr;
     SDL_Surface* frameTextureSurface = nullptr;
+    PostProcessor postProcessor;
 };
 
 extern VulkanRenderer gVulkan;
