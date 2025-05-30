@@ -22,7 +22,7 @@ public:
     VkExtent2D swapchainExtent {};
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
-    VkCommandPool commandPool = VK_NULL_HANDLE;
+    std::vector<VkCommandPool> commandPools;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailable;
     std::vector<VkSemaphore> renderFinished;

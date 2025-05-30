@@ -106,7 +106,7 @@ static void save_render_backend(RenderBackend backend)
         return;
 
     config_load(&cfg, "f1_res.ini", false);
-    const char* name = backend == RenderBackend::VULKAN ? "VULKAN" : "SDL";
+    const char* name = backend == RenderBackend::VULKAN_BATCH ? "VULKAN_BATCH" : "SDL";
     config_set_string(&cfg, "MAIN", "RENDER_BACKEND", name);
     config_save(&cfg, "f1_res.ini", false);
     config_exit(&cfg);
@@ -1571,7 +1571,7 @@ void initWindow(VideoOptions* video_options, int flags, RenderBackend backend)
     }
 
     rc = win_init(video_options, flags, backend);
-    if (rc != WINDOW_MANAGER_OK && backend == RenderBackend::VULKAN) {
+    if (rc != WINDOW_MANAGER_OK && backend == RenderBackend::VULKAN_BATCH) {
         // Attempt automatic fallback to SDL when Vulkan initialization fails.
         rc = win_init(video_options, flags, RenderBackend::SDL);
         if (rc == WINDOW_MANAGER_OK) {

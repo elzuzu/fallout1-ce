@@ -47,15 +47,15 @@ static void show_render_backend_launcher()
     if (config_load(&config, "f1_res.ini", false)) {
         char* backendName;
         if (config_get_string(&config, "MAIN", "RENDER_BACKEND", &backendName)) {
-            if (compat_stricmp(backendName, "VULKAN") == 0) {
-                backend = RenderBackend::VULKAN;
+            if (compat_stricmp(backendName, "VULKAN_BATCH") == 0) {
+                backend = RenderBackend::VULKAN_BATCH;
             }
         }
     }
 
     SDL_MessageBoxButtonData buttons[] = {
         { backend == RenderBackend::SDL ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT : 0, 0, "SDL" },
-        { backend == RenderBackend::VULKAN ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT : 0, 1, "Vulkan" },
+        { backend == RenderBackend::VULKAN_BATCH ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT : 0, 1, "Vulkan" },
         { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 2, "Quit" },
     };
 
@@ -77,7 +77,7 @@ static void show_render_backend_launcher()
             name = "SDL";
             break;
         case 1:
-            name = "VULKAN";
+            name = "VULKAN_BATCH";
             break;
         default:
             config_exit(&config);

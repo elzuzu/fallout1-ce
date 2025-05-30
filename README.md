@@ -7,7 +7,7 @@ There is also [Fallout 2 Community Edition](https://github.com/alexbatalov/fallo
 ## Project Status
 
 - Runs on modern **64-bit Windows** only.
-- Experimental Vulkan renderer available via `RENDER_BACKEND=VULKAN` or the
+- Experimental Vulkan renderer available via `RENDER_BACKEND=VULKAN_BATCH` or the
   `FALLOUT_RENDER_BACKEND` environment variable.
 - Keyboard layout is detected automatically on Windows.
 
@@ -29,7 +29,7 @@ You can also tweak a few options via environment variables:
 
 - `F1CE_WIDTH` and `F1CE_HEIGHT` – desired resolution (minimum 640×480).
 - `F1CE_WINDOWED` – set to `1` for windowed mode.
-- `F1CE_RENDER_BACKEND` – `SDL` or `VULKAN`.
+- `F1CE_RENDER_BACKEND` – `SDL` or `VULKAN_BATCH`.
 
 When `F1CE_USE_CONFIG_FILES` is enabled the main configuration file is
 `fallout.cfg`. Depending on your Fallout distribution main game assets
@@ -54,7 +54,7 @@ WINDOWED=1
 RENDER_BACKEND=SDL
 ```
 
-Use `RENDER_BACKEND=VULKAN` to enable the experimental Vulkan renderer. This
+Use `RENDER_BACKEND=VULKAN_BATCH` to enable the experimental Vulkan renderer. This
 setting can also be overridden by the `FALLOUT_RENDER_BACKEND` environment
 variable.
 

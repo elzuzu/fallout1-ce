@@ -6,7 +6,7 @@ Il existe également [Fallout 2 Community Edition](https://github.com/alexbatalo
 
 ## État du projet
 - Fonctionne sur les versions modernes de Windows 64 bits.
-- Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN` ou la variable d'environnement `FALLOUT_RENDER_BACKEND`.
+- Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN_BATCH` ou la variable d'environnement `FALLOUT_RENDER_BACKEND`.
 - La disposition du clavier est détectée automatiquement sous Windows.
 
 ## Installation
@@ -25,7 +25,7 @@ d'environnement :
 
 - `F1CE_WIDTH` et `F1CE_HEIGHT` — résolution souhaitée (min. 640×480).
 - `F1CE_WINDOWED` — mettre `1` pour jouer en fenêtre.
-- `F1CE_RENDER_BACKEND` — `SDL` ou `VULKAN`.
+- `F1CE_RENDER_BACKEND` — `SDL` ou `VULKAN_BATCH`.
 
 Lorsque `F1CE_USE_CONFIG_FILES` est actif, le fichier principal reste
 `fallout.cfg`. Selon votre distribution du jeu, les fichiers `master.dat`,
@@ -51,7 +51,7 @@ WINDOWED=1
 RENDER_BACKEND=SDL
 ```
 
-Utilisez `RENDER_BACKEND=VULKAN` pour activer le rendu Vulkan expérimental. Ce réglage peut également être remplacé par la variable d'environnement `FALLOUT_RENDER_BACKEND`.
+Utilisez `RENDER_BACKEND=VULKAN_BATCH` pour activer le rendu Vulkan expérimental. Ce réglage peut également être remplacé par la variable d'environnement `FALLOUT_RENDER_BACKEND`.
 
 Recommandations :
 - **Ordinateurs de bureau** : utilisez la taille que vous souhaitez.
