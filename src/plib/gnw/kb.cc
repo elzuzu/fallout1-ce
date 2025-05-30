@@ -4,6 +4,10 @@
 #include "plib/gnw/input.h"
 #include "plib/gnw/vcr.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace fallout {
 
 typedef struct key_ansi_t {
@@ -43,6 +47,7 @@ static void kb_toggle_scroll();
 static int kb_buffer_put(key_data_t* key_data);
 static int kb_buffer_get(key_data_t* key_data);
 static int kb_buffer_peek(int index, key_data_t** keyboardEventPtr);
+static KeyboardLayout kb_detect_layout();
 
 // 0x539E00
 static unsigned char kb_installed = 0;
@@ -103,6 +108,28 @@ int kb_layout;
 // 0x6730AC
 unsigned char keynumpress;
 
+static KeyboardLayout kb_detect_layout()
+{
+#ifdef _WIN32
+    HKL layout = GetKeyboardLayout(0);
+    LANGID langId = LOWORD((DWORD)(uintptr_t)layout);
+    switch (PRIMARYLANGID(langId)) {
+    case LANG_FRENCH:
+        return KEYBOARD_LAYOUT_FRENCH;
+    case LANG_GERMAN:
+        return KEYBOARD_LAYOUT_GERMAN;
+    case LANG_ITALIAN:
+        return KEYBOARD_LAYOUT_ITALIAN;
+    case LANG_SPANISH:
+        return KEYBOARD_LAYOUT_SPANISH;
+    default:
+        return KEYBOARD_LAYOUT_QWERTY;
+    }
+#else
+    return KEYBOARD_LAYOUT_QWERTY;
+#endif
+}
+
 // 0x4B6430
 int GNW_kb_set()
 {
@@ -116,7 +143,7 @@ int GNW_kb_set()
     kb_clear();
 
     kb_init_lock_status();
-    kb_set_layout(KEYBOARD_LAYOUT_QWERTY);
+    kb_set_layout(kb_detect_layout());
 
     kb_idle_start_time = get_time();
 
@@ -244,22 +271,22 @@ void kb_set_layout(int layout)
         kb_scan_to_ascii = kb_next_ascii_English_US;
         kb_map_ascii_English_US();
         break;
-    // case KEYBOARD_LAYOUT_FRENCH:
-    //     kb_scan_to_ascii = kb_next_ascii_French;
-    //     kb_map_ascii_French();
-    //     break;
-    // case KEYBOARD_LAYOUT_GERMAN:
-    //     kb_scan_to_ascii = kb_next_ascii_German;
-    //     kb_map_ascii_German();
-    //     break;
-    // case KEYBOARD_LAYOUT_ITALIAN:
-    //     kb_scan_to_ascii = kb_next_ascii_Italian;
-    //     kb_map_ascii_Italian();
-    //     break;
-    // case KEYBOARD_LAYOUT_SPANISH:
-    //     kb_scan_to_ascii = kb_next_ascii_Spanish;
-    //     kb_map_ascii_Spanish();
-    //     break;
+    case KEYBOARD_LAYOUT_FRENCH:
+        kb_scan_to_ascii = kb_next_ascii_English_US;
+        kb_map_ascii_French();
+        break;
+    case KEYBOARD_LAYOUT_GERMAN:
+        kb_scan_to_ascii = kb_next_ascii_English_US;
+        kb_map_ascii_German();
+        break;
+    case KEYBOARD_LAYOUT_ITALIAN:
+        kb_scan_to_ascii = kb_next_ascii_English_US;
+        kb_map_ascii_Italian();
+        break;
+    case KEYBOARD_LAYOUT_SPANISH:
+        kb_scan_to_ascii = kb_next_ascii_English_US;
+        kb_map_ascii_Spanish();
+        break;
     default:
         kb_layout = old_layout;
         break;
