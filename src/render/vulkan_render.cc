@@ -3,11 +3,13 @@
 #include "game/graphics_advanced.h"
 #include "render/vulkan_thread_manager.h"
 #include "render/vulkan_debugger.h"
+#include "render/vulkan_capabilities.h"
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
 #include <vector>
+#include <algorithm>
 
 namespace fallout {
 
@@ -32,6 +34,11 @@ namespace {
     {
         gVulkan.internalExtent.width = gVulkan.swapchainExtent.width / 2;
         gVulkan.internalExtent.height = gVulkan.swapchainExtent.height / 2;
+
+        if (gVulkanCaps.maxTextureSize > 0) {
+            gVulkan.internalExtent.width = std::min(gVulkan.internalExtent.width, gVulkanCaps.maxTextureSize);
+            gVulkan.internalExtent.height = std::min(gVulkan.internalExtent.height, gVulkanCaps.maxTextureSize);
+        }
 
         VkImageCreateInfo imageInfo { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -382,6 +389,8 @@ bool vulkan_render_init(VideoOptions* options)
     if (gGraphicsAdvanced.gpuIndex < static_cast<int>(gpuCount))
         index = gGraphicsAdvanced.gpuIndex;
     gVulkan.physicalDevice = gpus[index];
+
+    gVulkanCaps.init(gVulkan.physicalDevice);
 
     uint32_t familyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(gVulkan.physicalDevice, &familyCount, nullptr);

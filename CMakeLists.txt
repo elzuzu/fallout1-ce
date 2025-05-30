@@ -278,6 +278,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/render/vulkan_debugger.cc"
     "src/render/vulkan_thread_manager.cc"
     "src/render/vulkan_texture_manager.cc"
+    "src/render/vulkan_capabilities.cc"
 )
 
 if(IOS)
