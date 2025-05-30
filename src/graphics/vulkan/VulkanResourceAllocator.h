@@ -78,6 +78,10 @@ private:
     VmaAllocator vmaAllocator_ = VK_NULL_HANDLE;
     VkDevice device_ = VK_NULL_HANDLE; // Store for destroying views, etc.
     bool initialized_ = false;
+    // Memory pools for specific buffer types
+    VmaPool vertexBufferPool_ = VK_NULL_HANDLE;
+    VmaPool indexBufferPool_ = VK_NULL_HANDLE;
+    VmaPool uniformBufferPool_ = VK_NULL_HANDLE;
 };
 
 } // namespace vk
