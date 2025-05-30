@@ -21,6 +21,9 @@ class VulkanDevice {
 public:
     bool selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
     VkPhysicalDevice getPhysicalDevice() const { return physicalDevice_; }
+    bool createLogicalDevice(VkSurfaceKHR surface, VkDevice& device,
+        VkQueue& graphicsQueue,
+        uint32_t& graphicsQueueFamily);
 
 private:
     bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface);

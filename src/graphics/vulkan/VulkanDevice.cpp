@@ -97,4 +97,53 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surfac
     return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
+bool VulkanDevice::createLogicalDevice(VkSurfaceKHR surface,
+    VkDevice& device,
+    VkQueue& graphicsQueue,
+    uint32_t& graphicsQueueFamily)
+{
+    if (physicalDevice_ == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice_, surface);
+    if (!indices.isComplete()) {
+        return false;
+    }
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {
+        static_cast<uint32_t>(indices.graphicsFamily),
+        static_cast<uint32_t>(indices.presentFamily)
+    };
+
+    float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo {};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+    VkPhysicalDeviceFeatures deviceFeatures {};
+
+    VkDeviceCreateInfo createInfo {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    if (vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device) != VK_SUCCESS) {
+        return false;
+    }
+
+    graphicsQueueFamily = static_cast<uint32_t>(indices.graphicsFamily);
+    vkGetDeviceQueue(device, graphicsQueueFamily, 0, &graphicsQueue);
+    return true;
+}
+
 } // namespace fallout
