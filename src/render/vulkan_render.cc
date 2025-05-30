@@ -33,6 +33,12 @@ namespace {
         VkDeviceMemory internalImageMemory = VK_NULL_HANDLE;
         VkImageView internalImageView = VK_NULL_HANDLE;
         VkExtent2D internalExtent{};
+
+        // SDL surfaces used by the engine when running with the Vulkan
+        // backend. These mirror the surfaces provided by the SDL renderer
+        // but are not yet wired into the actual Vulkan rendering pipeline.
+        SDL_Surface* frameSurface = nullptr;        // 8-bit indexed surface
+        SDL_Surface* frameTextureSurface = nullptr; // 32-bit RGBA surface
     } gVulkan;
 
     static uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -205,6 +211,41 @@ bool vulkan_render_init(VideoOptions* options)
     gVulkan.width = options->width * options->scale;
     gVulkan.height = options->height * options->scale;
 
+    // Create software surfaces matching the game's logical resolution. These
+    // are used by various subsystems to draw graphics before they are uploaded
+    // to the Vulkan swapchain. For now they are CPU-only and the contents are
+    // not yet copied to the Vulkan images.
+    gVulkan.frameSurface = SDL_CreateRGBSurface(0,
+        options->width,
+        options->height,
+        8,
+        0,
+        0,
+        0,
+        0);
+    if (gVulkan.frameSurface == nullptr)
+        return false;
+
+    gVulkan.frameTextureSurface = SDL_CreateRGBSurfaceWithFormat(0,
+        options->width,
+        options->height,
+        32,
+        SDL_PIXELFORMAT_BGRA8888);
+    if (gVulkan.frameTextureSurface == nullptr)
+        return false;
+
+    // Initialize grayscale palette like the SDL renderer does.
+    if (gVulkan.frameSurface->format->palette != nullptr) {
+        SDL_Color colors[256];
+        for (int index = 0; index < 256; index++) {
+            colors[index].r = index;
+            colors[index].g = index;
+            colors[index].b = index;
+            colors[index].a = SDL_ALPHA_OPAQUE;
+        }
+        SDL_SetPaletteColors(gVulkan.frameSurface->format->palette, colors, 0, 256);
+    }
+
     VkApplicationInfo appInfo { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     appInfo.pApplicationName = "FalloutCE";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -309,6 +350,16 @@ void vulkan_render_exit()
     vkDestroyCommandPool(gVulkan.device, gVulkan.commandPool, nullptr);
 
     destroy_swapchain();
+
+    if (gVulkan.frameTextureSurface != nullptr) {
+        SDL_FreeSurface(gVulkan.frameTextureSurface);
+        gVulkan.frameTextureSurface = nullptr;
+    }
+
+    if (gVulkan.frameSurface != nullptr) {
+        SDL_FreeSurface(gVulkan.frameSurface);
+        gVulkan.frameSurface = nullptr;
+    }
 
     if (gVulkan.surface != VK_NULL_HANDLE)
         vkDestroySurfaceKHR(gVulkan.instance, gVulkan.surface, nullptr);
@@ -456,12 +507,12 @@ void vulkan_render_present()
 
 SDL_Surface* vulkan_render_get_surface()
 {
-    return nullptr;
+    return gVulkan.frameSurface;
 }
 
 SDL_Surface* vulkan_render_get_texture_surface()
 {
-    return nullptr;
+    return gVulkan.frameTextureSurface;
 }
 
 } // namespace fallout

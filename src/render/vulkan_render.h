@@ -18,8 +18,8 @@ void vulkan_render_handle_window_size_changed();
 // Presents the current frame using Vulkan.
 void vulkan_render_present();
 
-// Currently the Vulkan backend does not expose a surface.
-// These functions return nullptr until implemented.
+// Accessors for the software surfaces used by the engine when rendering with
+// the Vulkan backend.
 SDL_Surface* vulkan_render_get_surface();
 SDL_Surface* vulkan_render_get_texture_surface();
 
