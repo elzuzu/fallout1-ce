@@ -20,6 +20,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+enable_testing()
+
 option(ASAN "Enable address sanitizer" OFF)
 option(UBSAN "Enable undefined behaviour sanitizer" OFF)
 
@@ -372,6 +374,8 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SDL2_INCLUDE_DIRS})
 
 find_package(Vulkan REQUIRED)
 target_link_libraries(${EXECUTABLE_NAME} Vulkan::Vulkan)
+
+add_subdirectory(tests)
 
 if(APPLE)
     if(IOS)
