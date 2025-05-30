@@ -17,6 +17,12 @@
 ### Infrastructure Vulkan/3D
 - [ ] Compléter le moteur Vulkan (pipeline 3D complet, gestion commandes, shaders).
 - [ ] Vérifier les extensions Vulkan nécessaires (VK_KHR_surface, VK_KHR_win32_surface, VK_EXT_debug_utils, VK_KHR_swapchain, VK_EXT_graphics_pipeline_library).
+- [ ] Implémenter `VulkanCommandManager` (pools de commandes et réinitialisation par frame).
+- [ ] Créer les pipelines `Sprite`, `Model`, `UI` et `Post-Process`.
+- [ ] Organiser les descriptor sets (0 global, 1 objet, 2 textures, 3 spécial).
+- [ ] Ajouter les shaders de base `vertex.vert` et `fragment.frag`.
+- [ ] Utiliser `VulkanFrame` pour la synchronisation par frame.
+- [ ] Mettre en place le `FallbackManager` pour détecter les échecs 3D.
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
