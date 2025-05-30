@@ -69,6 +69,12 @@ Recommendations:
 
 These variables allow simple tweaks without editing configuration files.
 
+## glTF assets
+
+The engine now supports loading simple glTF models using the integrated `tinygltf` loader.
+Place your `.gltf` files inside the `tests/assets` directory or another path referenced by your configuration.
+Animations and basic PBR material parameters are imported automatically.
+
 ## Contributing
 
 Here is a couple of current goals. Open up an issue if you have suggestion or feature request.

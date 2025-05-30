@@ -35,3 +35,9 @@ VULKAN_DEBUG=0   # Validation layers
 VULKAN_VSYNC=1   # V-sync
 VULKAN_GPU_INDEX=0
 ```
+
+### Options for glTF loading
+
+The build integrates a lightweight copy of `tinygltf` located in `external/tinygltf`.
+No additional dependencies are required. Enable or disable glTF tests through the
+standard `f1_tests` target.
