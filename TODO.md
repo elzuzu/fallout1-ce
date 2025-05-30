@@ -32,6 +32,12 @@
 - [x] Buffer uniforme persistant avec adresse GPU.
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
+- [x] HUD de debug ImGui avec capture RenderDoc (F12).
+- [x] Descriptor indexing pour atlases multiples.
+- [x] Command buffers secondaires enregistrés en multithread.
+- [x] Rendu dynamique via VK_KHR_dynamic_rendering.
+- [x] Détection MoltenVK et chemins fallback.
+- [x] Hot-reload des shaders GLSL/HLSL.
 - [ ] Génération automatique des mipmaps pour les textures.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).

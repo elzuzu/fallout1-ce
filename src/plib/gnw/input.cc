@@ -14,6 +14,7 @@
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
 #include "render/render.h"
+#include "graphics/vulkan/DebugHud.h"
 #include "plib/gnw/text.h"
 #include "plib/gnw/touch.h"
 #include "plib/gnw/vcr.h"
@@ -1089,6 +1090,7 @@ void GNW95_process_message()
     KeyboardData keyboardData;
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
+        fallout::gDebugHud.handleEvent(e);
         switch (e.type) {
         case SDL_MOUSEMOTION:
         case SDL_MOUSEBUTTONDOWN:

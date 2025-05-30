@@ -9,6 +9,7 @@
 #include "render/post_processor.h"
 #include "render/vulkan_capabilities.h"
 #include "render/vulkan_debugger.h"
+#include "graphics/vulkan/DebugHud.h"
 #include "render/vulkan_thread_manager.h"
 #include <cstdlib>
 #include <cstring>
@@ -168,7 +169,10 @@ namespace { // Anonymous namespace for static helpers
         VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
-        if (gGraphicsAdvanced.debugger) gVulkanDebugger.begin_frame(frameInFlightIndex, cmdBuffer);
+        if (gGraphicsAdvanced.debugger) {
+            gVulkanDebugger.begin_frame(frameInFlightIndex, cmdBuffer);
+            gDebugHud.begin(cmdBuffer);
+        }
 
         // --- Rendering setup (barriers, clear values, rendering info - as before) ---
         // (Assuming create_depth_resources and create_internal_image correctly set up attachments)
@@ -266,6 +270,10 @@ namespace { // Anonymous namespace for static helpers
             }
         }
         vkCmdEndRendering(cmdBuffer);
+        if (gGraphicsAdvanced.debugger) {
+            gVulkanDebugger.end_frame(frameInFlightIndex, cmdBuffer);
+            gDebugHud.end(cmdBuffer);
+        }
         // ... (Rest of post-processing and presentation logic as before) ...
     }
 } // namespace (anonymous)
@@ -297,7 +305,10 @@ bool vulkan_render_init(VideoOptions* options)
         return false;
     }
 
-    if (gGraphicsAdvanced.debugger) gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
+    if (gGraphicsAdvanced.debugger) {
+        gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
+        gDebugHud.init(gVulkan.instance, gVulkan.device);
+    }
     if (!create_swapchain(gVulkan.width, gVulkan.height)) return false;
     // ... (Command Pools, Pipeline Cache creation) ...
 
@@ -376,6 +387,10 @@ void vulkan_render_exit()
 {
     if (gVulkan.device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(gVulkan.device);
+        if (gGraphicsAdvanced.debugger) {
+            gDebugHud.shutdown();
+            gVulkanDebugger.destroy();
+        }
         // ...
         if (gVulkan.resourceAllocator_) {
             gVulkan.matricesUBO_.Destroy(gVulkan.resourceAllocator_->GetVmaAllocator());
