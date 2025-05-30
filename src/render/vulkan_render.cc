@@ -264,8 +264,12 @@ bool vulkan_render_init(VideoOptions* options)
         return false; // No suitable GPU
     }
     gVulkan.physicalDevice = deviceSelector.getPhysicalDevice();
-
-    // ... (queue families, device creation as before) ...
+    if (!deviceSelector.createLogicalDevice(gVulkan.surface,
+            gVulkan.device,
+            gVulkan.graphicsQueue,
+            gVulkan.graphicsQueueFamily)) {
+        return false;
+    }
     // Ensure gVulkan.resourceAllocator_, gVulkan.resourceManager_, gVulkan.camera_ are initialized.
     // This is a conceptual placeholder for where game would set these up.
     if (!gVulkan.resourceAllocator_) { /* ... fatal error ... */
