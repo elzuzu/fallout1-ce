@@ -25,6 +25,11 @@
 - [ ] Ajouter les shaders de base `vertex.vert` et `fragment.frag`.
 - [ ] Utiliser `VulkanFrame` pour la synchronisation par frame.
 - [ ] Mettre en place le `FallbackManager` pour détecter les échecs 3D.
+- [x] Recréation du swapchain tolérante aux pertes de périphérique.
+- [x] LUT palette GPU et shader dédié.
+- [x] Pipeline compute de conversion YUV420 → RGBA.
+- [x] Cache de pipeline persistant.
+- [x] Buffer uniforme persistant avec adresse GPU.
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
 - [ ] Génération automatique des mipmaps pour les textures.

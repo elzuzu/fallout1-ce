@@ -86,7 +86,7 @@ namespace { // Anonymous namespace for static helpers
         (void)width;
         (void)height;
         VulkanSwapchain swap;
-        if (!swap.create(gVulkan.device, gVulkan.physicalDevice, gVulkan.surface, gSdlWindow)) {
+        if (swap.create(gVulkan.device, gVulkan.physicalDevice, gVulkan.surface, gSdlWindow, VK_NULL_HANDLE) != VK_SUCCESS) {
             return false;
         }
         gVulkan.swapchain = swap.get();
