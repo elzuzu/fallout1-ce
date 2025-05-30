@@ -270,6 +270,7 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/pointer_registry.h"
     "src/plib/gnw/touch.cc"
     "src/plib/gnw/touch.h"
+    "src/render/render.cc"
 )
 
 if(IOS)

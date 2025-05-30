@@ -13,6 +13,7 @@
 #include "plib/gnw/intrface.h"
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
+#include "render/render.h"
 #include "plib/gnw/text.h"
 #include "plib/gnw/touch.h"
 #include "plib/gnw/vcr.h"
@@ -1118,7 +1119,7 @@ void GNW95_process_message()
                 win_refresh_all(&scr_size);
                 break;
             case SDL_WINDOWEVENT_SIZE_CHANGED:
-                handleWindowSizeChanged();
+                render_handle_window_size_changed();
                 win_refresh_all(&scr_size);
                 break;
             case SDL_WINDOWEVENT_FOCUS_GAINED:
