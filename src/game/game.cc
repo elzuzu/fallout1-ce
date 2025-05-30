@@ -1,8 +1,8 @@
 #include "game/game.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "game/actions.h"
 #include "game/anim.h"
@@ -57,6 +57,7 @@
 #include "plib/gnw/memory.h"
 #include "plib/gnw/svga.h"
 #include "plib/gnw/text.h"
+#include "render/vulkan_render.h"
 
 namespace fallout {
 
@@ -123,6 +124,24 @@ DB_DATABASE* master_db_handle;
 
 // 0x58CC1C
 DB_DATABASE* critter_db_handle;
+
+// Saves selected rendering backend into f1_res.ini when configuration files are enabled.
+static void save_render_backend(RenderBackend backend)
+{
+    const char* use_config = getenv("F1CE_USE_CONFIG_FILES");
+    if (use_config == NULL || strcmp(use_config, "1") != 0)
+        return;
+
+    Config cfg;
+    if (!config_init(&cfg))
+        return;
+
+    config_load(&cfg, "f1_res.ini", false);
+    const char* name = backend == RenderBackend::VULKAN ? "VULKAN" : "SDL";
+    config_set_string(&cfg, "MAIN", "RENDER_BACKEND", name);
+    config_save(&cfg, "f1_res.ini", false);
+    config_exit(&cfg);
+}
 
 // 0x43B080
 int game_init(const char* windowTitle, bool isMapper, int font, int flags, int argc, char** argv)
@@ -213,6 +232,11 @@ int game_init(const char* windowTitle, bool isMapper, int font, int flags, int a
     const char* envBackend = getenv("FALLOUT_RENDER_BACKEND");
     if (envBackend != nullptr && compat_stricmp(envBackend, "VULKAN") == 0) {
         backend = RenderBackend::VULKAN;
+    }
+
+    if (backend == RenderBackend::VULKAN && !vulkan_is_available()) {
+        backend = RenderBackend::SDL;
+        save_render_backend(backend);
     }
 
     initWindow(&video_options, flags, backend);

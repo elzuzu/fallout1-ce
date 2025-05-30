@@ -324,26 +324,28 @@ bool vulkan_render_init(VideoOptions* options)
 
 void vulkan_render_exit()
 {
-    if (gVulkan.device == VK_NULL_HANDLE)
-        return;
+    if (gVulkan.device != VK_NULL_HANDLE) {
+        vkDeviceWaitIdle(gVulkan.device);
 
-    vkDeviceWaitIdle(gVulkan.device);
+        for (VkFence f : gVulkan.inFlightFences) {
+            vkDestroyFence(gVulkan.device, f, nullptr);
+        }
+        gVulkan.inFlightFences.clear();
 
-    for (VkFence f : gVulkan.inFlightFences) {
-        vkDestroyFence(gVulkan.device, f, nullptr);
+        if (gVulkan.renderFinished != VK_NULL_HANDLE)
+            vkDestroySemaphore(gVulkan.device, gVulkan.renderFinished, nullptr);
+        if (gVulkan.imageAvailable != VK_NULL_HANDLE)
+            vkDestroySemaphore(gVulkan.device, gVulkan.imageAvailable, nullptr);
+
+        if (gVulkan.descriptorPool != VK_NULL_HANDLE)
+            vkDestroyDescriptorPool(gVulkan.device, gVulkan.descriptorPool, nullptr);
+        if (gVulkan.pipelineCache != VK_NULL_HANDLE)
+            vkDestroyPipelineCache(gVulkan.device, gVulkan.pipelineCache, nullptr);
+
+        vkDestroyCommandPool(gVulkan.device, gVulkan.commandPool, nullptr);
+
+        destroy_swapchain();
     }
-    gVulkan.inFlightFences.clear();
-    vkDestroySemaphore(gVulkan.device, gVulkan.renderFinished, nullptr);
-    vkDestroySemaphore(gVulkan.device, gVulkan.imageAvailable, nullptr);
-
-    if (gVulkan.descriptorPool != VK_NULL_HANDLE)
-        vkDestroyDescriptorPool(gVulkan.device, gVulkan.descriptorPool, nullptr);
-    if (gVulkan.pipelineCache != VK_NULL_HANDLE)
-        vkDestroyPipelineCache(gVulkan.device, gVulkan.pipelineCache, nullptr);
-
-    vkDestroyCommandPool(gVulkan.device, gVulkan.commandPool, nullptr);
-
-    destroy_swapchain();
 
     if (gVulkan.frameTextureSurface != nullptr) {
         SDL_FreeSurface(gVulkan.frameTextureSurface);
@@ -368,6 +370,8 @@ void vulkan_render_exit()
     }
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+
+    gVulkan = {};
 }
 
 void vulkan_render_handle_window_size_changed()
@@ -512,6 +516,19 @@ SDL_Surface* vulkan_render_get_surface()
 SDL_Surface* vulkan_render_get_texture_surface()
 {
     return gVulkan.frameTextureSurface;
+}
+
+bool vulkan_is_available()
+{
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
+        return false;
+
+    bool available = SDL_Vulkan_LoadLibrary(nullptr) == 0;
+    if (available)
+        SDL_Vulkan_UnloadLibrary();
+
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    return available;
 }
 
 } // namespace fallout

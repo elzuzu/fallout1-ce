@@ -56,6 +56,9 @@ void vulkan_render_present();
 SDL_Surface* vulkan_render_get_surface();
 SDL_Surface* vulkan_render_get_texture_surface();
 
+// Returns true if Vulkan support is available on the system.
+bool vulkan_is_available();
+
 } // namespace fallout
 
 #endif /* FALLOUT_RENDER_VULKAN_RENDER_H_ */
