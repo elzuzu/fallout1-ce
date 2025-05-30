@@ -34,8 +34,6 @@ Utilisez `RENDER_BACKEND=VULKAN` pour activer le rendu Vulkan expérimental. Ce 
 
 Recommandations :
 - **Ordinateurs de bureau** : utilisez la taille que vous souhaitez.
-- **Tablettes** : définissez ces valeurs sur la résolution logique de votre appareil (par exemple, l'iPad Pro 11 fait 1668x2388 pixels mais sa résolution logique est de 834x1194 points).
-- **Téléphones** : réglez la hauteur sur 480 et calculez la largeur selon le ratio de votre écran, par exemple un Samsung S21 (20:9) aura une largeur de `480 * 20 / 9 = 1067`.
 
 Cette configuration disposera d'une interface intégrée ultérieurement. Pour l'instant elle doit être réalisée manuellement.
 
