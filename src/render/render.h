@@ -9,7 +9,7 @@ namespace fallout {
 
 enum class RenderBackend {
     SDL,
-    // Placeholder for Vulkan implementation
+    VULKAN,
 };
 
 bool render_init(RenderBackend backend, VideoOptions* options);
