@@ -362,6 +362,9 @@ target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
 target_link_libraries(${EXECUTABLE_NAME} ${SDL2_LIBRARIES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SDL2_INCLUDE_DIRS})
 
+find_package(Vulkan REQUIRED)
+target_link_libraries(${EXECUTABLE_NAME} Vulkan::Vulkan)
+
 if(APPLE)
     if(IOS)
         install(TARGETS ${EXECUTABLE_NAME} DESTINATION "Payload")
