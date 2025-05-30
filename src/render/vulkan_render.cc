@@ -1,19 +1,20 @@
 #include "render/vulkan_render.h"
-#include "plib/gnw/svga.h"
 #include "game/graphics_advanced.h"
-#include "render/vulkan_thread_manager.h"
-#include "render/vulkan_debugger.h"
-#include "render/vulkan_capabilities.h"
+#include "graphics/vulkan/MemoryAllocator.hpp"
+#include "plib/gnw/svga.h"
 #include "render/post_processor.h"
+#include "render/vulkan_capabilities.h"
+#include "render/vulkan_debugger.h"
+#include "render/vulkan_thread_manager.h"
 #include <cstdlib>
 #include <cstring>
 
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
-#include <vector>
 #include <algorithm>
 #include <memory>
+#include <vector>
 
 namespace fallout {
 
@@ -419,6 +420,7 @@ bool vulkan_render_init(VideoOptions* options)
         return false;
 
     vkGetDeviceQueue(gVulkan.device, gVulkan.graphicsQueueFamily, 0, &gVulkan.graphicsQueue);
+    MemoryAllocator::init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device, gVulkan.graphicsQueueFamily);
 
     if (gGraphicsAdvanced.debugger)
         gVulkanDebugger.init(gVulkan.instance, gVulkan.physicalDevice, gVulkan.device);
@@ -498,6 +500,7 @@ void vulkan_render_exit()
         if (gGraphicsAdvanced.debugger)
             gVulkanDebugger.destroy();
         vkDeviceWaitIdle(gVulkan.device);
+        MemoryAllocator::shutdown();
 
         for (VkFence f : gVulkan.inFlightFences) {
             vkDestroyFence(gVulkan.device, f, nullptr);
@@ -586,7 +589,7 @@ void vulkan_render_present()
     if (!gGraphicsAdvanced.multithreaded) {
         record_and_submit(imageIndex, gVulkan.currentFrame, cmdBuffer, inFlight);
     } else {
-        RenderCommand cmd{};
+        RenderCommand cmd {};
         cmd.func = [imageIndex, frame = gVulkan.currentFrame, cmdBuffer, inFlight]() {
             record_and_submit(imageIndex, frame, cmdBuffer, inFlight);
         };

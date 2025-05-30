@@ -40,7 +40,8 @@ if(UBSAN)
     target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
 endif()
 
-target_include_directories(${EXECUTABLE_NAME} PUBLIC src)
+target_include_directories(${EXECUTABLE_NAME} PUBLIC src external/VMA/include)
+target_compile_definitions(${EXECUTABLE_NAME} PUBLIC VMA_STATIC_VULKAN_FUNCTIONS=0)
 
 target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/game/actions.cc"
@@ -282,6 +283,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/render/vulkan_texture_manager.cc"
     "src/render/vulkan_capabilities.cc"
     "src/render/post_processor.cc"
+    "src/graphics/vulkan/MemoryAllocator.cpp"
+    "src/graphics/vulkan/MemoryAllocator.hpp"
 )
 
 if(IOS)
