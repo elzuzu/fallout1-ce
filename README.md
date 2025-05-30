@@ -93,7 +93,12 @@ The second configuration file is `f1_res.ini`. Use it to change game window size
 SCR_WIDTH=1280
 SCR_HEIGHT=720
 WINDOWED=1
+RENDER_BACKEND=SDL
 ```
+
+Use `RENDER_BACKEND=VULKAN` to enable the experimental Vulkan renderer. This
+setting can also be overridden by the `FALLOUT_RENDER_BACKEND` environment
+variable.
 
 Recommendations:
 - **Desktops**: Use any size you see fit.

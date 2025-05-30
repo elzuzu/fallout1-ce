@@ -1527,7 +1527,7 @@ static void windowRemoveProgramReferences(Program* program)
 }
 
 // 0x4A5C9C
-void initWindow(VideoOptions* video_options, int flags)
+void initWindow(VideoOptions* video_options, int flags, RenderBackend backend)
 {
     char err[COMPAT_MAX_PATH];
     int rc;
@@ -1551,7 +1551,7 @@ void initWindow(VideoOptions* video_options, int flags)
         windows[i].window = -1;
     }
 
-    rc = win_init(video_options, flags);
+    rc = win_init(video_options, flags, backend);
     if (rc != WINDOW_MANAGER_OK) {
         switch (rc) {
         case WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE:

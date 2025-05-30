@@ -77,7 +77,7 @@ static int doing_refresh_all;
 void* GNW_texture;
 
 // 0x4C1CF0
-int win_init(VideoOptions* video_options, int flags)
+int win_init(VideoOptions* video_options, int flags, RenderBackend backend)
 {
 #ifdef _WIN32
     CloseHandle(GNW95_mutex);
@@ -112,7 +112,7 @@ int win_init(VideoOptions* video_options, int flags)
         return WINDOW_MANAGER_ERR_INITIALIZING_TEXT_FONTS;
     }
 
-    if (!render_init(RenderBackend::SDL, video_options)) {
+    if (!render_init(backend, video_options)) {
         render_exit();
 
         return WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE;
