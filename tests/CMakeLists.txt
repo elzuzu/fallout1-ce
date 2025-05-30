@@ -4,6 +4,7 @@ add_executable(f1_tests
     fps_limiter_test.cpp
     vulkan_available_test.cpp
     test_batch.cpp
+    test_cache.cpp
 )
 
 target_include_directories(f1_tests PRIVATE
