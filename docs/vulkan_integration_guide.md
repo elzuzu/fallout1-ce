@@ -119,3 +119,8 @@ GLTF_MODEL_PATH=data/models/
 ANIMATION_QUALITY=HIGH
 PBR_SHADING=1
 3.3 Performance et debuggingMétriques à exposer :FPS et frame timeMémoire GPU utiliséeNombre de draw callsTaille des descriptor setsTemps de chargement glTFDebug features :Wireframe modeNormal visualizationTexture atlas viewerAnimation timeline scrubber
+
+Cette structure isole le code spécifique à Vulkan. L'allocation mémoire utilise
+désormais `VulkanResourceAllocator` avec des pools dédiés pour les buffers de
+vertex, d'index et d'uniformes afin de réduire la fragmentation et d'améliorer
+les performances.

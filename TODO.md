@@ -26,6 +26,7 @@
 - [ ] Mettre en place le `FallbackManager` pour détecter les échecs 3D.
 - [x] Gestionnaire de ressources hybride (sprites + modèles 3D) initial implémenté.
 - [x] Allocateur mémoire Vulkan avec pools pour vertex/index/uniformes.
+- [ ] Génération automatique des mipmaps pour les textures.
 - [x] Fallback automatique vers les sprites en cas d'échec 3D.
 - [ ] Support de modèles glTF 2.0 (chargement, materials, animations).
 - [ ] Implémenter une transition intelligente Sprite/3D avec cache des sprites.
