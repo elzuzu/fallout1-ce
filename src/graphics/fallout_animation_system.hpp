@@ -1,15 +1,13 @@
 #pragma once
 
 #include "graphics/diablo_animation_system.hpp"
-#include "render/vulkan_memory_manager.h"
+#include "render/fallout_memory_manager.h"
 #include <unordered_map>
 #include <memory>
 #include <string>
 
 namespace fallout {
 
-class FalloutMemoryManager : public VulkanMemoryManager {
-};
 
 class FalloutAssetManager {
 public:

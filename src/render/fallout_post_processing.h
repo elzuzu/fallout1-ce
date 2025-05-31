@@ -1,13 +1,13 @@
 #pragma once
 #include "render/diablo_post_processing.h"
-#include "render/vulkan_memory_manager.h"
+#include "render/fallout_memory_manager.h"
 
 namespace fallout {
 
 // Extension of DiabloPostProcessing for Fallout-specific presets
 class FalloutPostProcessing : public DiabloPostProcessing {
 private:
-    VulkanMemoryManager* memoryManager = nullptr;
+    FalloutMemoryManager* memoryManager = nullptr;
     // Presets tailored for the Fallout world
     DiabloPostFXSettings wastelandPreset{};
     DiabloPostFXSettings vaultPreset{};
@@ -18,7 +18,7 @@ private:
 
 public:
     // Initialize the post-processing system using Fallout's memory manager
-    bool initializeForFallout(VulkanMemoryManager* memMgr,
+    bool initializeForFallout(FalloutMemoryManager* memMgr,
                               VkDevice device,
                               VkAllocationCallbacks* alloc,
                               VkRenderPass renderPass,

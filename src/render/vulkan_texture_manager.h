@@ -7,10 +7,10 @@
 
 #include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
+#include "render/fallout_memory_manager.h"
 
 namespace fallout {
 
-class VulkanMemoryManager;
 
 class VulkanTextureManager {
 public:
@@ -25,7 +25,7 @@ public:
     VulkanTextureManager() = default;
 
     bool init(VkPhysicalDevice physicalDevice, VkDevice device,
-        VulkanMemoryManager* memoryManager, VkCommandPool commandPool, VkQueue queue);
+        FalloutMemoryManager* memoryManager, VkCommandPool commandPool, VkQueue queue);
     void destroy();
 
     void loadTextureAsync(const std::string& path);
@@ -38,7 +38,7 @@ private:
 
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
-    VulkanMemoryManager* m_memoryManager = nullptr;
+    FalloutMemoryManager* m_memoryManager = nullptr;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkQueue m_queue = VK_NULL_HANDLE;
 

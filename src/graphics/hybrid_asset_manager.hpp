@@ -9,12 +9,8 @@
 #include <unordered_map>
 #include <memory>
 #include <optional>
+#include "render/fallout_memory_manager.h"
 namespace fallout {
-
-// Forward declarations
-class FalloutMemoryManager;
-struct AllocatedBuffer;
-struct AllocatedImage;
 
 /*** Legacy Fallout Asset Support ***/
 #pragma pack(push, 1)
