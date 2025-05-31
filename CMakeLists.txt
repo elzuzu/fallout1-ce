@@ -329,7 +329,9 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                 "src/graphics/sdl_renderer.cpp"
                 "src/graphics/RenderObject.cpp"
                 "src/graphics/RenderObject.h"
-                                                                                                                                                                                "src/graphics/vulkan/VulkanSpritePipeline.h")
+                "src/graphics/vulkan/VulkanSpritePipeline.h"
+                "src/graphics/fallout_sprite_renderer.cpp"
+                "src/graphics/fallout_sprite_renderer.hpp")
 
                                                                                                                                                                                 if (IOS)
                                                                                                                                                                                     target_sources(${ EXECUTABLE_NAME } PUBLIC
