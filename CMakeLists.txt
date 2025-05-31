@@ -322,6 +322,7 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                 "src/render/ThreadPool.h"
                 "src/graphics/renderer_factory.h"
                 "src/graphics/renderer_factory.cpp"
+                "src/graphics/vk_core_fix.hpp"
                 "src/graphics/sdl_renderer.cpp"
                 "src/graphics/RenderObject.cpp"
                 "src/graphics/RenderObject.h"
