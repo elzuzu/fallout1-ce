@@ -27,9 +27,8 @@ void VulkanTextureManager::destroy()
         if (it.second.view != VK_NULL_HANDLE)
             vkDestroyImageView(m_device, it.second.view, nullptr);
         if (it.second.image != VK_NULL_HANDLE)
-            vkDestroyImage(m_device, it.second.image, nullptr);
-        if (it.second.memory != VK_NULL_HANDLE)
-            vkFreeMemory(m_device, it.second.memory, nullptr);
+            vmaDestroyImage(m_memoryManager ? m_memoryManager->getAllocator() : VK_NULL_HANDLE,
+                it.second.image, it.second.memory);
     }
     textureCache.clear();
 }
@@ -95,20 +94,14 @@ bool VulkanTextureManager::loadTexture(const std::string& path, Texture& out)
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (!m_memoryManager->create_texture_with_staging(pixels.data(), imageSize, imageInfo,
-            m_commandPool, m_queue, out.image, out.memory))
+    VulkanImage img = m_memoryManager->createSpriteAtlas(static_cast<uint32_t>(width),
+        static_cast<uint32_t>(height), pixels.data());
+    if (img.image == VK_NULL_HANDLE)
         return false;
+    out.image = img.image;
+    out.view = img.imageView;
+    out.memory = img.allocation;
 
-    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    viewInfo.image = out.image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = format;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = out.mipLevels;
-    viewInfo.subresourceRange.layerCount = 1;
-    if (vkCreateImageView(m_device, &viewInfo, nullptr, &out.view) != VK_SUCCESS)
-        return false;
 
     out.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
