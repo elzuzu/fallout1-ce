@@ -1,6 +1,7 @@
 #include "graphics/renderer_interface.h"
 #include "graphics/vk_core_fix.hpp"
 #include "plib/gnw/debug.h"
+#include "graphics/vulkan_error_reporter.hpp"
 #include "plib/gnw/svga.h"
 #include <memory>
 #include <algorithm>
@@ -258,6 +259,7 @@ bool initializeRenderer() {
         return true;
     }
     debug_printf("Vulkan initialization failed: %s\n", vulkanResult.errorMessage.c_str());
+    VulkanErrorReporter::generateDiagnosticReport(vulkanResult.errorMessage);
     debug_printf("Falling back to SDL renderer\n");
     cleanupPartialVulkan(vulkanResult);
     if (initializeSDL()) {
