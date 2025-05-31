@@ -65,6 +65,10 @@ Recommandations :
 
 Ces variables permettent de personnaliser sans modifier les fichiers de configuration.
 
+## Outils de débogage
+
+Pour vérifier l'utilisation correcte de Vulkan et analyser une trame rendue, activez les **couches de validation** et utilisez **RenderDoc**. Une présentation rapide de ces outils est disponible dans [docs/vulkan_debug_tools.md](docs/vulkan_debug_tools.md).
+
 ## Contribuer
 Voici quelques objectifs actuels. Ouvrez une issue si vous avez des suggestions ou des demandes de fonctionnalités.
 - **Mettre à jour en v1.2**. Le projet est basé sur la Reference Edition qui implémente la v1.1 sortie en novembre 1997. Une version 1.2 parue en mars 1998 apporte au moins un support multilingue important.
