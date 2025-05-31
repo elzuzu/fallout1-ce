@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 
@@ -12,6 +14,7 @@ struct VulkanBuffer {
     VmaAllocationInfo allocInfo{};
     VkDeviceSize size = 0;
     void* mappedData = nullptr;
+    std::string debugName;
 };
 
 struct VulkanImage {
@@ -20,25 +23,33 @@ struct VulkanImage {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkExtent2D extent{};
+    std::string debugName;
 };
 
 class VulkanMemoryManager {
     VmaAllocator m_allocator = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+
+    std::unordered_map<VkBuffer, std::string> m_bufferNames;
+    std::unordered_map<VkImage, std::string> m_imageNames;
+    size_t m_totalAllocatedBytes = 0;
 
 public:
     bool init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
     void destroy();
+    void printMemoryStats();
 
     VmaAllocator getAllocator() const { return m_allocator; }
     VkDevice getDevice() const { return m_device; }
 
-    VulkanBuffer createVertexBuffer(const void* data, VkDeviceSize size);
-    VulkanBuffer createUniformBuffer(VkDeviceSize size);
-    VulkanBuffer createStagingBuffer(VkDeviceSize size);
+    VulkanBuffer createVertexBuffer(const void* data, VkDeviceSize size, const std::string& name = "");
+    VulkanBuffer createIndexBuffer(const void* data, VkDeviceSize size, const std::string& name = "");
+    VulkanBuffer createUniformBuffer(VkDeviceSize size, bool hostVisible = true, const std::string& name = "");
+    VulkanBuffer createStagingBuffer(VkDeviceSize size, const std::string& name = "");
 
-    VulkanImage createSpriteAtlas(uint32_t width, uint32_t height, const void* data);
-    VulkanImage createPaletteTexture(const uint8_t* paletteData, uint32_t paletteCount);
+    VulkanImage createSpriteAtlas(uint32_t width, uint32_t height, const void* data = nullptr, const std::string& name = "");
+    VulkanImage createPaletteTexture(const uint8_t* paletteData, uint32_t paletteCount, const std::string& name = "");
 
     void destroyBuffer(VulkanBuffer& buffer);
     void destroyImage(VulkanImage& image);
@@ -48,34 +59,93 @@ private:
     void uploadDataToImage(VulkanImage& image, const void* data, size_t sizeBytes);
 };
 
-class ManagedBuffer {
-    VulkanBuffer m_buffer{};
-    VmaAllocator m_allocator = VK_NULL_HANDLE;
+template<typename T>
+class VulkanResource {
+protected:
+    T resource{};
+    VmaAllocator allocator = VK_NULL_HANDLE;
+    bool valid = false;
 
 public:
-    ManagedBuffer(VmaAllocator alloc, const VulkanBuffer& buf) : m_buffer(buf), m_allocator(alloc) {}
-    ~ManagedBuffer();
+    VulkanResource() = default;
+    VulkanResource(const VulkanResource&) = delete;
+    VulkanResource& operator=(const VulkanResource&) = delete;
 
-    VulkanBuffer* operator->() { return &m_buffer; }
-    const VulkanBuffer* operator->() const { return &m_buffer; }
+    VulkanResource(VulkanResource&& other) noexcept
+        : resource(other.resource)
+        , allocator(other.allocator)
+        , valid(other.valid)
+    {
+        other.valid = false;
+    }
+
+    VulkanResource& operator=(VulkanResource&& other) noexcept
+    {
+        if (this != &other) {
+            cleanup();
+            resource = other.resource;
+            allocator = other.allocator;
+            valid = other.valid;
+            other.valid = false;
+        }
+        return *this;
+    }
+
+    virtual ~VulkanResource() { cleanup(); }
+
+    const T& get() const { return resource; }
+    T& get() { return resource; }
+
+    operator bool() const { return valid; }
+
+protected:
+    virtual void cleanup() = 0;
 };
 
-class ManagedImage {
-    VulkanImage m_image{};
-    VmaAllocator m_allocator = VK_NULL_HANDLE;
-    VkDevice m_device = VK_NULL_HANDLE;
+class ManagedBuffer : public VulkanResource<VulkanBuffer> {
+public:
+    ManagedBuffer(VmaAllocator alloc, const VulkanBuffer& buf)
+    {
+        allocator = alloc;
+        resource = buf;
+        valid = (resource.buffer != VK_NULL_HANDLE);
+    }
+
+protected:
+    void cleanup() override
+    {
+        if (valid && resource.buffer != VK_NULL_HANDLE) {
+            vmaDestroyBuffer(allocator, resource.buffer, resource.allocation);
+            resource = {};
+            valid = false;
+        }
+    }
+};
+
+class ManagedImage : public VulkanResource<VulkanImage> {
+    VkDevice device = VK_NULL_HANDLE;
 
 public:
     ManagedImage(VmaAllocator alloc, VkDevice dev, const VulkanImage& img)
-        : m_image(img)
-        , m_allocator(alloc)
-        , m_device(dev)
     {
+        allocator = alloc;
+        device = dev;
+        resource = img;
+        valid = (resource.image != VK_NULL_HANDLE);
     }
-    ~ManagedImage();
 
-    VulkanImage* operator->() { return &m_image; }
-    const VulkanImage* operator->() const { return &m_image; }
+protected:
+    void cleanup() override
+    {
+        if (valid && resource.image != VK_NULL_HANDLE) {
+            if (resource.imageView != VK_NULL_HANDLE) {
+                vkDestroyImageView(device, resource.imageView, nullptr);
+            }
+            vmaDestroyImage(allocator, resource.image, resource.allocation);
+            resource = {};
+            valid = false;
+        }
+    }
 };
 
 using BufferPtr = std::unique_ptr<ManagedBuffer>;
