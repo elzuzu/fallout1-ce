@@ -31,18 +31,30 @@ set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 file(GLOB SHADER_SRC "${SHADER_DIR}/*.vert" "${SHADER_DIR}/*.frag")
 set(SPIRV_OUTPUTS)
-foreach(SHADER ${SHADER_SRC})
-    get_filename_component(FILE_NAME ${SHADER} NAME)
-    set(SPIRV ${SHADER_OUT_DIR}/${FILE_NAME}.spv)
-    add_custom_command(
-        OUTPUT ${SPIRV}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
-        COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER} -o ${SPIRV}
-        DEPENDS ${SHADER}
-    )
-    list(APPEND SPIRV_OUTPUTS ${SPIRV})
-endforeach()
-add_custom_target(shaders ALL DEPENDS ${SPIRV_OUTPUTS})
+if(GLSLANG_VALIDATOR)
+    foreach(SHADER ${SHADER_SRC})
+        get_filename_component(FILE_NAME ${SHADER} NAME)
+        set(SPIRV ${SHADER_OUT_DIR}/${FILE_NAME}.spv)
+        add_custom_command(
+            OUTPUT ${SPIRV}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
+            COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER} -o ${SPIRV}
+            DEPENDS ${SHADER}
+        )
+        list(APPEND SPIRV_OUTPUTS ${SPIRV})
+    endforeach()
+    add_custom_target(shaders ALL DEPENDS ${SPIRV_OUTPUTS})
+else()
+    message(WARNING "glslangValidator not found. Skipping shader compilation.")
+    add_custom_target(shaders)
+endif()
+find_package(SDL2 QUIET)
+if(NOT SDL2_FOUND)
+    message(WARNING "SDL2 not found. Building stub executable.")
+    add_executable(${EXECUTABLE_NAME} src/stub_main.cc)
+    return()
+endif()
+
 
 
 if(ANDROID)
