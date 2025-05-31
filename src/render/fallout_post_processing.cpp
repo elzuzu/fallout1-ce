@@ -2,7 +2,7 @@
 
 namespace fallout {
 
-bool FalloutPostProcessing::initializeForFallout(VulkanMemoryManager* memMgr,
+bool FalloutPostProcessing::initializeForFallout(FalloutMemoryManager* memMgr,
                                                  VkDevice device,
                                                  VkAllocationCallbacks* alloc,
                                                  VkRenderPass renderPass,

@@ -1,5 +1,5 @@
 #include "render/vulkan_texture_manager.h"
-#include "render/vulkan_memory_manager.h"
+#include "render/fallout_memory_manager.h"
 #include "render/vulkan_thread_manager.h"
 #include <cmath>
 
@@ -10,7 +10,7 @@
 namespace fallout {
 
 bool VulkanTextureManager::init(VkPhysicalDevice physicalDevice, VkDevice device,
-    VulkanMemoryManager* memoryManager, VkCommandPool commandPool, VkQueue queue)
+    FalloutMemoryManager* memoryManager, VkCommandPool commandPool, VkQueue queue)
 {
     m_physicalDevice = physicalDevice;
     m_device = device;
