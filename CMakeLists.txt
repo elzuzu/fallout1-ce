@@ -323,6 +323,8 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                 "src/graphics/renderer_factory.h"
                 "src/graphics/renderer_factory.cpp"
                 "src/graphics/vk_core_fix.hpp"
+                "src/graphics/vulkan_error_reporter.cpp"
+                "src/graphics/vulkan_error_reporter.hpp"
                 "src/graphics/sdl_renderer.cpp"
                 "src/graphics/RenderObject.cpp"
                 "src/graphics/RenderObject.h"
