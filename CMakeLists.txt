@@ -26,38 +26,45 @@ set(CMAKE_CXX_EXTENSIONS NO)
                                                                 option(UBSAN "Enable undefined behaviour sanitizer" OFF)
 
 #Compile GLSL shaders to SPIR - V
-                                                                    find_program(GLSLANG_VALIDATOR glslangValidator)
-                                                                        set(SHADER_DIR ${ CMAKE_CURRENT_SOURCE_DIR } / shaders)
-                                                                            set(SHADER_OUT_DIR ${ CMAKE_CURRENT_BINARY_DIR } / shaders)
-                                                                                file(GLOB SHADER_SRC "${SHADER_DIR}/*.vert"
-                                                                                                     "${SHADER_DIR}/*.frag")
-                                                                                    set(SPIRV_OUTPUTS)
-                                                                                        foreach (SHADER ${ SHADER_SRC })
-                                                                                            get_filename_component(FILE_NAME ${ SHADER } NAME)
-                                                                                                set(SPIRV ${ SHADER_OUT_DIR } / ${ FILE_NAME }.spv)
-                                                                                                    add_custom_command(
-                                                                                                        OUTPUT ${ SPIRV } COMMAND ${ CMAKE_COMMAND } - E make_directory ${ SHADER_OUT_DIR } COMMAND ${ GLSLANG_VALIDATOR } - V ${ SHADER } - o ${ SPIRV } DEPENDS ${ SHADER })
-                                                                                                        list(APPEND SPIRV_OUTPUTS ${ SPIRV })
-                                                                                                            endforeach()
-                                                                                                                add_custom_target(shaders ALL DEPENDS ${ SPIRV_OUTPUTS })
+find_program(GLSLANG_VALIDATOR glslangValidator)
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(GLOB SHADER_SRC "${SHADER_DIR}/*.vert" "${SHADER_DIR}/*.frag")
+set(SPIRV_OUTPUTS)
+foreach(SHADER ${SHADER_SRC})
+    get_filename_component(FILE_NAME ${SHADER} NAME)
+    set(SPIRV ${SHADER_OUT_DIR}/${FILE_NAME}.spv)
+    add_custom_command(
+        OUTPUT ${SPIRV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
+        COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER} -o ${SPIRV}
+        DEPENDS ${SHADER}
+    )
+    list(APPEND SPIRV_OUTPUTS ${SPIRV})
+endforeach()
+add_custom_target(shaders ALL DEPENDS ${SPIRV_OUTPUTS})
 
-                                                                                                                    if (ANDROID)
-                                                                                                                        add_library(${ EXECUTABLE_NAME } SHARED) else()
-                                                                                                                            add_executable(${ EXECUTABLE_NAME } WIN32 MACOSX_BUNDLE)
-                                                                                                                                endif()
 
-                                                                                                                                    if (ASAN)
-                                                                                                                                        target_compile_options(${ EXECUTABLE_NAME } PUBLIC "-fsanitize=address;-fsanitize-recover=address")
-                                                                                                                                            target_link_options(${ EXECUTABLE_NAME } PUBLIC "-fsanitize=address;-fsanitize-recover=address")
-                                                                                                                                                endif() if (UBSAN)
-                                                                                                                                                    target_compile_options(${ EXECUTABLE_NAME } PUBLIC "-fsanitize=undefined")
-                                                                                                                                                        target_link_options(${ EXECUTABLE_NAME } PUBLIC "-fsanitize=undefined")
-                                                                                                                                                            endif()
+if(ANDROID)
+    add_library(${EXECUTABLE_NAME} SHARED)
+else()
+    add_executable(${EXECUTABLE_NAME} WIN32 MACOSX_BUNDLE)
+endif()
 
-target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / include external / tinygltf)
-                                                                                                                                                                    target_compile_definitions(${ EXECUTABLE_NAME } PUBLIC VMA_STATIC_VULKAN_FUNCTIONS = 0)
+if(ASAN)
+    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+endif()
+if(UBSAN)
+    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+endif()
 
-                                                                                                                                                                        target_sources(${ EXECUTABLE_NAME } PUBLIC
+
+target_include_directories(${EXECUTABLE_NAME} PUBLIC src external/VMA/include external/tinygltf)
+                                                                                                                                                                    target_compile_definitions(${EXECUTABLE_NAME} PUBLIC VMA_STATIC_VULKAN_FUNCTIONS=0)
+
+                                                                                                                                                                        target_sources(${EXECUTABLE_NAME} PUBLIC
                                                                                                                                                                             "src/game/actions.cc"
                                                                                                                                                                             "src/game/actions.h"
                                                                                                                                                                             "src/game/amutex.cc"
@@ -277,7 +284,7 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                                                                                                                                                                             "src/movie_lib.cc"
                                                                                                                                                                             "src/movie_lib.h")
 
-                                                                                                                                                                            target_sources(${ EXECUTABLE_NAME } PUBLIC
+                                                                                                                                                                            target_sources(${EXECUTABLE_NAME} PUBLIC
                                                                                                                                                                                 "src/audio_engine.cc"
                                                                                                                                                                                 "src/audio_engine.h"
                                                                                                                                                                                 "src/fps_limiter.cc"
@@ -335,13 +342,13 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                 "src/graphics/fallout_sprite_renderer.hpp")
 
                                                                                                                                                                                 if (IOS)
-                                                                                                                                                                                    target_sources(${ EXECUTABLE_NAME } PUBLIC
+                                                                                                                                                                                    target_sources(${EXECUTABLE_NAME} PUBLIC
                                                                                                                                                                                         "src/platform/ios/paths.h"
                                                                                                                                                                                         "src/platform/ios/paths.mm")
                                                                                                                                                                                         endif()
 
                                                                                                                                                                                             if (WIN32)
-                                                                                                                                                                                                target_compile_definitions(${ EXECUTABLE_NAME } PUBLIC
+                                                                                                                                                                                                target_compile_definitions(${EXECUTABLE_NAME} PUBLIC
                                                                                                                                                                                                         _CRT_SECURE_NO_WARNINGS
                                                                                                                                                                                                             _CRT_NONSTDC_NO_WARNINGS
                                                                                                                                                                                                                 NOMINMAX
@@ -349,77 +356,11 @@ target_include_directories(${ EXECUTABLE_NAME } PUBLIC src external / VMA / incl
                                                                                                                                                                                                     endif()
 
                                                                                                                                                                                                         if (WIN32)
-                                                                                                                                                                                                            target_link_libraries(${ EXECUTABLE_NAME } winmm)
+                                                                                                                                                                                                            target_link_libraries(${EXECUTABLE_NAME} winmm)
                                                                                                                                                                                                                 endif()
 
                                                                                                                                                                                                                     if (WIN32)
-                                                                                                                                                                                                                        target_sources(${ EXECUTABLE_NAME } PUBLIC
+                                                                                                                                                                                                                        target_sources(${EXECUTABLE_NAME} PUBLIC
                                                                                                                                                                                                                             "os/windows/fallout-ce.ico"
                                                                                                                                                                                                                             "os/windows/fallout-ce.rc")
                                                                                                                                                                                                                             endif()
-
-                                                                                                                                                                                                                                if (APPLE) if (IOS)
-                                                                                                                                                                                                                                    set(RESOURCES
-                                                                                                                                                                                                                                        "os/ios/AppIcon.xcassets"
-                                                                                                                                                                                                                                        "os/ios/LaunchScreen.storyboard")
-
-                                                                                                                                                                                                                                        target_sources(${ EXECUTABLE_NAME } PUBLIC ${ RESOURCES })
-                                                                                                                                                                                                                                            set_source_files_properties(${ RESOURCES } PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
-
-                                                                                                                                                                                                                                                set_target_properties(${ EXECUTABLE_NAME } PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/ios/Info.plist" XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon" XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout-ce" XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2")
-
-                                                                                                                                                                                                                                                    set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
-                                                                                                                                                                                                                                                        set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout") else()
-                                                                                                                                                                                                                                                            set(RESOURCES
-                                                                                                                                                                                                                                                                "os/macos/fallout-ce.icns")
-
-                                                                                                                                                                                                                                                                target_sources(${ EXECUTABLE_NAME } PUBLIC ${ RESOURCES })
-                                                                                                                                                                                                                                                                    set_source_files_properties(${ RESOURCES } PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
-
-                                                                                                                                                                                                                                                                        set_target_properties(${ EXECUTABLE_NAME } PROPERTIES OUTPUT_NAME "Fallout Community Edition" MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/macos/Info.plist" XCODE_ATTRIBUTE_EXECUTABLE_NAME "${EXECUTABLE_NAME}" XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout-ce")
-
-                                                                                                                                                                                                                                                                            set(MACOSX_BUNDLE_ICON_FILE "fallout-ce.icns")
-                                                                                                                                                                                                                                                                                set(MACOSX_BUNDLE_BUNDLE_NAME "Fallout: Community Edition")
-                                                                                                                                                                                                                                                                                    set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout")
-                                                                                                                                                                                                                                                                                        endif()
-
-                                                                                                                                                                                                                                                                                            set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout-ce")
-                                                                                                                                                                                                                                                                                                set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0")
-                                                                                                                                                                                                                                                                                                    set(MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0")
-                                                                                                                                                                                                                                                                                                        endif()
-
-                                                                                                                                                                                                                                                                                                            if ((NOT ${ CMAKE_SYSTEM_NAME } MATCHES "Linux")AND(NOT ${ CMAKE_SYSTEM_NAME } MATCHES "FreeBSD") AND(NOT ${ CMAKE_SYSTEM_NAME } MATCHES "OpenBSD"))
-                                                                                                                                                                                                                                                                                                                add_subdirectory("third_party/sdl2") else()
-                                                                                                                                                                                                                                                                                                                    find_package(SDL2)
-                                                                                                                                                                                                                                                                                                                        endif()
-
-                                                                                                                                                                                                                                                                                                                            add_subdirectory("third_party/adecode")
-                                                                                                                                                                                                                                                                                                                                target_link_libraries(${ EXECUTABLE_NAME } adecode::adecode)
-
-                                                                                                                                                                                                                                                                                                                                    add_subdirectory("third_party/fpattern")
-                                                                                                                                                                                                                                                                                                                                        target_link_libraries(${ EXECUTABLE_NAME } fpattern::fpattern)
-
-                                                                                                                                                                                                                                                                                                                                            target_link_libraries(${ EXECUTABLE_NAME } ${ SDL2_LIBRARIES })
-                                                                                                                                                                                                                                                                                                                                                target_include_directories(${ EXECUTABLE_NAME } PRIVATE ${ SDL2_INCLUDE_DIRS })
-
-                                                                                                                                                                                                                                                                                                                                                    find_package(Vulkan REQUIRED)
-                                                                                                                                                                                                                                                                                                                                                        target_link_libraries(${ EXECUTABLE_NAME } Vulkan::Vulkan)
-
-                                                                                                                                                                                                                                                                                                                                                            add_subdirectory(tests)
-
-                                                                                                                                                                                                                                                                                                                                                                if (APPLE) if (IOS)
-                                                                                                                                                                                                                                                                                                                                                                    install(TARGETS ${ EXECUTABLE_NAME } DESTINATION "Payload")
-
-                                                                                                                                                                                                                                                                                                                                                                        set(CPACK_GENERATOR "ZIP")
-                                                                                                                                                                                                                                                                                                                                                                            set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-                                                                                                                                                                                                                                                                                                                                                                                set(CPACK_PACKAGE_FILE_NAME "fallout-ce")
-                                                                                                                                                                                                                                                                                                                                                                                    set(CPACK_ARCHIVE_FILE_EXTENSION "ipa") else()
-                                                                                                                                                                                                                                                                                                                                                                                        install(TARGETS ${ EXECUTABLE_NAME } DESTINATION.)
-
-                                                                                                                                                                                                                                                                                                                                                                                            set(CPACK_GENERATOR "DragNDrop")
-                                                                                                                                                                                                                                                                                                                                                                                                set(CPACK_DMG_DISABLE_APPLICATIONS_SYMLINK ON)
-                                                                                                                                                                                                                                                                                                                                                                                                    set(CPACK_PACKAGE_FILE_NAME "Fallout Community Edition")
-                                                                                                                                                                                                                                                                                                                                                                                                        endif()
-
-                                                                                                                                                                                                                                                                                                                                                                                                            include(CPack)
-                                                                                                                                                                                                                                                                                                                                                                                                                endif()
