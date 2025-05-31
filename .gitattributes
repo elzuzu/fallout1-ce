@@ -22,3 +22,6 @@ LICENSE text eol=lf
 
 # Force CRLF
 *.bat text eol=crlf
+
+# Do not enforce line endings for prebuilt SDK files
+VulkanSDK/** -text
