@@ -6,7 +6,9 @@ Il existe également [Fallout 2 Community Edition](https://github.com/alexbatalo
 
 ## État du projet
 - Fonctionne sur les versions modernes de Windows 64 bits.
-- Rendu Vulkan expérimental disponible via `RENDER_BACKEND=VULKAN_BATCH` ou la variable d'environnement `FALLOUT_RENDER_BACKEND`.
+- Rendu Vulkan avec post-traitement avancé disponible via `RENDER_BACKEND=VULKAN_BATCH` ou la variable d'environnement `FALLOUT_RENDER_BACKEND`.
+- Pipeline hybride 2D/3D avec prise en charge des assets glTF.
+- Gestionnaire mémoire avancé optimisé pour Vulkan.
 - La disposition du clavier est détectée automatiquement sous Windows.
 
 ## Installation
