@@ -21,6 +21,16 @@ You must own the game to play. Purchase your copy on [GOG](https://www.gog.com/g
 
 Download and copy `fallout-ce.exe` to your `Fallout` folder. It serves as a drop-in replacement for `falloutw.exe`.
 
+#### Build from source
+
+An optional helper script is available for Windows 11 users. It relies on
+Chocolatey to install the required tools and then compiles the 64‑bit
+executable with the latest Visual Studio build tools:
+
+```powershell
+scripts\build_win64.ps1 -SourceDir . -Release
+```
+
 ## Configuration
 
 The launcher contains default configuration so the game works out of the box. If
