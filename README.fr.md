@@ -17,6 +17,16 @@ Vous devez posséder le jeu pour y jouer. Achetez une copie sur [GOG](https://ww
 ### Windows
 Téléchargez `fallout-ce.exe` et copiez-le dans votre dossier `Fallout`. Il remplace `falloutw.exe`.
 
+#### Compiler depuis les sources
+
+Un script PowerShell est fourni pour Windows 11. Il installe automatiquement les
+outils nécessaires via Chocolatey puis compile l'exécutable 64‭bits avec Visual
+Studio :
+
+```powershell
+scripts\build_win64.ps1 -SourceDir . -Release
+```
+
 ## Configuration
 Le lanceur embarque désormais une configuration par défaut. Pour charger
 `fallout.cfg` ou `f1_res.ini`, définissez la variable d'environnement
